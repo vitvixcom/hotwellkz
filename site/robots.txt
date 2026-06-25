@@ -1,0 +1,3 @@
+User-agent: *
+Allow: /
+Sitemap: https://hotwellkz.kz/sitemap.xml

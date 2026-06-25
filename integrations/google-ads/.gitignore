@@ -1,0 +1,5 @@
+# Never commit real credentials
+google-ads.yaml
+google_token.json
+*.local
+.env

@@ -1,0 +1,21 @@
+# Netlify: статический сайт HotWell.kz лежит в папке site/
+[build]
+  publish = "site"
+  command = ""
+
+# Долгий кэш для статических ассетов (картинки, og-обложка)
+[[headers]]
+  for = "/assets/*"
+  [headers.values]
+    Cache-Control = "public, max-age=2592000"
+
+# CSS/JS — суточный кэш с обязательной перепроверкой (правки доходят сразу)
+[[headers]]
+  for = "/css/*"
+  [headers.values]
+    Cache-Control = "public, max-age=86400, must-revalidate"
+
+[[headers]]
+  for = "/js/*"
+  [headers.values]
+    Cache-Control = "public, max-age=86400, must-revalidate"

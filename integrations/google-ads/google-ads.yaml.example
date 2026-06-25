@@ -1,0 +1,15 @@
+# Google Ads API configuration (TEMPLATE — no real secrets here).
+#
+# Prefer environment variables / GitHub Secrets over a committed file.
+# The values below mirror the GOOGLE_ADS_* env vars read by ads_client.py.
+#
+# Required:
+developer_token: "YOUR_DEVELOPER_TOKEN"          # Google Ads -> Tools -> API Center
+client_id: "YOUR_OAUTH_CLIENT_ID"
+client_secret: "YOUR_OAUTH_CLIENT_SECRET"
+refresh_token: "YOUR_OAUTH_REFRESH_TOKEN"
+
+# Required when calling under a manager (MCC) account. Digits only, no dashes.
+login_customer_id: "1234567890"
+
+use_proto_plus: true

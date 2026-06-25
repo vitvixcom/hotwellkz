@@ -1,0 +1,62 @@
+name: Генерация SEO-статьи
+
+# Запуск вручную (кнопка Run workflow) и по расписанию.
+on:
+  workflow_dispatch:
+    inputs:
+      topic:
+        description: "Тема статьи (оставьте пустым — скилл придумает сам)"
+        required: false
+        default: ""
+  schedule:
+    # каждый понедельник в 06:00 UTC (~11:00 по Казахстану)
+    - cron: "0 6 * * 1"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: generate-article
+  cancel-in-progress: false
+
+jobs:
+  generate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Сгенерировать статью
+        env:
+          # Работает и с Secret, и с Variable с именем OPENAI_API_KEY
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY || vars.OPENAI_API_KEY }}
+          SITE_BASE_URL: https://hotwellkz.kz
+          OPENAI_IMAGE_QUALITY: high
+          TOPIC: ${{ github.event.inputs.topic }}
+        run: |
+          if [ -z "$OPENAI_API_KEY" ]; then
+            echo "::error::OPENAI_API_KEY не задан. Добавьте его в Settings → Secrets and variables → Actions."
+            exit 1
+          fi
+          if [ -n "$TOPIC" ]; then
+            python3 .claude/skills/generate-article/generate.py --topic "$TOPIC"
+          else
+            python3 .claude/skills/generate-article/generate.py
+          fi
+
+      - name: Закоммитить и запушить
+        run: |
+          git config user.name "hotwellkz"
+          git config user.email "hotwell.kz@gmail.com"
+          git add site/blog site/assets/blog site/index.html .claude/skills/generate-article/published.json
+          if git diff --cached --quiet; then
+            echo "Нет изменений — статья не создана."
+            exit 0
+          fi
+          git commit -m "Блог: новая SEO-статья (автогенерация)"
+          git push
