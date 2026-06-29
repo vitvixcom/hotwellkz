@@ -364,6 +364,11 @@ html,body{max-width:100%;overflow-x:clip}
 .faq-item summary::after{content:"+";position:absolute;right:4px;top:12px;font-size:1.3rem;font-weight:400;color:var(--accent,#FFC400);transition:transform .2s}
 .faq-item[open] summary::after{content:"\2212"}
 .faq-a{padding:0 0 16px;line-height:1.7;color:#444}
+.geo-links{margin-top:40px}
+.geo-links h2{font-size:1.3rem;text-transform:none;margin-bottom:14px}
+.geo-links__row{display:flex;flex-wrap:wrap;gap:8px}
+.geo-link{display:inline-block;padding:8px 14px;background:var(--c-badge,#f3f4f6);color:var(--c-green,#1a7d3c);border-radius:var(--r-pill,999px);font-size:.9rem;font-weight:600;transition:.15s}
+.geo-link:hover{background:var(--c-green,#1a7d3c);color:#fff}
 @media(max-width:860px){.pg{grid-template-columns:1fr;gap:22px}
 }
 .includes-spec{margin-top:46px;max-width:900px}

@@ -11,7 +11,7 @@
     python3 import.py --csv путь/к/wc-product-export.csv
     python3 import.py            # возьмёт source.csv рядом со скриптом, если есть
 """
-import os, sys, csv, re, json, argparse, hashlib, html as _html
+import os, sys, csv, re, json, time, argparse, hashlib, html as _html
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.abspath(os.path.join(HERE, "..", "..", ".."))
@@ -426,6 +426,59 @@ def build_faq(p):
     return html_block, faq_ld
 
 
+# ---------- перелинковка: проект → городские лендинги ----------
+# Крупные города (slug файла лендинга, отображаемое имя). Точное имя файла
+# подбирается с диска по приоритету услуг (написание slug у разных городов разное).
+MAJOR_CITIES = [
+    ("almaty", "Алматы"), ("astana", "Астана"), ("shymkent", "Шымкент"),
+    ("karaganda", "Караганда"), ("aktobe", "Актобе"), ("taraz", "Тараз"),
+    ("pavlodar", "Павлодар"), ("ust-kamenogorsk", "Усть-Каменогорск"),
+    ("semey", "Семей"), ("atyrau", "Атырау"), ("kostanay", "Костанай"),
+    ("kyzylorda", "Кызылорда"), ("uralsk", "Уральск"), ("konaev", "Конаев"),
+]
+SERVICE_PREF = ["sip-doma", "sip-dom-pod-klyuch", "dom-iz-sendvich-paneley",
+                "dom-iz-sendvich-panelej", "dom-iz-sendvich-panelei",
+                "karkasnye-doma", "stroitelstvo-domov-pod-klyuch"]
+
+_GEO_CACHE = {}
+
+
+def discover_city_landings():
+    """Находит на диске лучший лендинг для каждого крупного города."""
+    import glob
+    out = []
+    for slug, name in MAJOR_CITIES:
+        chosen = None
+        for svc in SERVICE_PREF:
+            fn = "%s-%s.html" % (slug, svc)
+            if os.path.exists(os.path.join(SITE, fn)):
+                chosen = fn
+                break
+        if not chosen:
+            g = sorted(glob.glob(os.path.join(SITE, "%s-*.html" % slug)))
+            if g:
+                chosen = os.path.basename(g[0])
+        if chosen:
+            out.append((name, chosen))
+    return out
+
+
+def geo_links_block(prefix="../"):
+    """Блок ссылок на городские лендинги (одинаков на всех страницах — кэшируем)."""
+    if prefix not in _GEO_CACHE:
+        cl = discover_city_landings()
+        if not cl:
+            _GEO_CACHE[prefix] = ""
+        else:
+            links = "".join(
+                '<a class="geo-link" href="%s%s">Дома из СИП-панелей в г. %s</a>'
+                % (prefix, esc(fn), esc(name)) for name, fn in cl)
+            _GEO_CACHE[prefix] = (
+                '<section class="geo-links"><h2>Строим дома из СИП-панелей по всему Казахстану</h2>'
+                '<div class="geo-links__row">%s</div></section>' % links)
+    return _GEO_CACHE[prefix]
+
+
 def project_page(p, prv=None, nxt=None, sim=None):
     url = "%s/proekty/%s.html" % (BASE_URL, p["slug"])
     specs = []
@@ -506,6 +559,8 @@ def project_page(p, prv=None, nxt=None, sim=None):
 <link rel="canonical" href="__URL__">
 <link rel="icon" type="image/svg+xml" href="../favicon.svg">
 <meta name="theme-color" content="#FFC400">
+<link rel="preconnect" href="https://hotwell.kz" crossorigin>
+<link rel="dns-prefetch" href="https://hotwell.kz">
 <meta property="og:type" content="product">
 <meta property="og:title" content="__TITLE__">
 <meta property="og:description" content="__DESC__">
@@ -524,7 +579,7 @@ __HEADER__
     __NAVTOP__
     <div class="pg">
       <div class="pg-gallery">
-        <div class="pg-main"><img id="pgMain" data-i="0" src="__MAIN__" alt="__NAME__ — проект дома из СИП-панелей"></div>
+        <div class="pg-main"><img id="pgMain" data-i="0" src="__MAIN__" alt="__NAME__ — проект дома из СИП-панелей" fetchpriority="high" decoding="async"></div>
         <div class="pg-thumbs">__THUMBS__</div>
       </div>
       <aside class="pg-info">
@@ -544,6 +599,7 @@ __HEADER__
     __FAQ__
     __SIMILAR__
     __NAV__
+    __GEO__
     <p style="margin-top:24px"><a href="../proekty.html" class="post-more">&larr; Весь каталог проектов</a></p>
   </div>
 </section>
@@ -590,7 +646,7 @@ __BOTTOM__
         "__NAME__": esc(p["name"]), "__MAIN__": esc(p["img"]), "__THUMBS__": thumbs,
         "__GROUP__": esc(p["group"]), "__PRICE__": price_block, "__SPECS__": specs_html,
         "__WA__": esc(wa_link(p["name"])), "__DESCBLOCK__": desc_block,
-        "__FAQ__": faq_block,
+        "__FAQ__": faq_block, "__GEO__": geo_links_block("../"),
         "__INCLUDES__": includes_table(), "__BOTTOM__": mobile_bar("../"),
         "__GALJSON__": json.dumps(p["images"][:20], ensure_ascii=False),
         "__NAMEJSON__": json.dumps(p["name"], ensure_ascii=False),
@@ -644,6 +700,8 @@ def catalog_page(groups, price_max, area_max, items=None, price_step=100000, are
 <link rel="canonical" href="__BASE__/proekty.html">
 <link rel="icon" type="image/svg+xml" href="favicon.svg">
 <meta name="theme-color" content="#FFC400">
+<link rel="preconnect" href="https://hotwell.kz" crossorigin>
+<link rel="dns-prefetch" href="https://hotwell.kz">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="HotWell.kz">
 <meta property="og:locale" content="ru_RU">
@@ -945,10 +1003,18 @@ def write_sitemap(items):
             if "noindex" in head.lower():
                 continue
             rels.add(f if rel_dir == "." else rel_dir.replace(os.sep, "/") + "/" + f)
-    urls = []
+    rows = []
     for rel in sorted(rels):
-        urls.append(BASE_URL + "/" if rel == "index.html" else "%s/%s" % (BASE_URL, rel))
-    body = "".join("  <url><loc>%s</loc></url>\n" % esc(u) for u in urls)
+        loc = BASE_URL + "/" if rel == "index.html" else "%s/%s" % (BASE_URL, rel)
+        try:
+            lastmod = time.strftime("%Y-%m-%d", time.gmtime(os.path.getmtime(os.path.join(SITE, rel))))
+        except Exception:
+            lastmod = None
+        rows.append((loc, lastmod))
+    body = "".join(
+        ("  <url><loc>%s</loc><lastmod>%s</lastmod></url>\n" % (esc(loc), lastmod)) if lastmod
+        else ("  <url><loc>%s</loc></url>\n" % esc(loc))
+        for loc, lastmod in rows)
     sm = '<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n' + body + "</urlset>\n"
     open(os.path.join(SITE, "sitemap.xml"), "w", encoding="utf-8").write(sm)
     open(os.path.join(SITE, "robots.txt"), "w", encoding="utf-8").write(
