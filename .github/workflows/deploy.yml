@@ -1,0 +1,41 @@
+name: Деплой на Netlify
+
+# Прод-деплой статического сайта (папка site/) в Netlify через CLI.
+# Не зависит от git-интеграции Netlify (которая у проекта не триггерит сборку).
+on:
+  push:
+    branches: [main]
+    paths:
+      - "site/**"
+      - "netlify.toml"
+      - ".github/workflows/deploy.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: netlify-deploy
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Deploy to Netlify
+        env:
+          NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
+          NETLIFY_SITE_ID: e48cc1f7-eb13-423b-b207-fc2a50b3955a
+        run: |
+          if [ -z "$NETLIFY_AUTH_TOKEN" ]; then
+            echo "::error::NETLIFY_AUTH_TOKEN не задан. Создайте Personal Access Token в Netlify (User settings → Applications → Personal access tokens) и добавьте его в Settings → Secrets and variables → Actions → Secrets под именем NETLIFY_AUTH_TOKEN."
+            exit 1
+          fi
+          npx -y netlify-cli@latest deploy \
+            --prod \
+            --dir=site \
+            --site="$NETLIFY_SITE_ID" \
+            --message "CI deploy ${GITHUB_SHA::7}"
