@@ -11,7 +11,7 @@
     python3 import.py --csv путь/к/wc-product-export.csv
     python3 import.py            # возьмёт source.csv рядом со скриптом, если есть
 """
-import os, sys, csv, re, json, argparse, html as _html
+import os, sys, csv, re, json, argparse, hashlib, html as _html
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.abspath(os.path.join(HERE, "..", "..", ".."))
@@ -256,6 +256,176 @@ def proj_card(p):
             % (thumb_block(p, p["slug"] + ".html"), price, p["slug"], esc(p["name"]), "".join(meta), p["slug"]))
 
 
+# ---------- генерация уникального SEO-описания и FAQ ----------
+# Тексты собираются из достоверных характеристик проекта с ротацией формулировок
+# по хешу слага, чтобы 550 страниц не были одинаковыми (защита от «тонкого»/
+# дублирующего контента). Никаких выдумок: только реальные поля проекта и факты
+# о технологии HotWell.kz (совпадают с таблицей «Что входит в стоимость»).
+
+GEO_CITIES = ("Алматы", "Астане", "Шымкенте", "Караганде", "Актобе", "Таразе",
+              "Павлодаре", "Усть-Каменогорске", "Костанае", "Кокшетау")
+
+
+def _load_ai_descriptions():
+    """AI-переписанные описания (необязательно). Генерируются gen_descriptions.py
+    в GitHub Action и складываются в ai-descriptions.json: {slug: {"desc": "<p>…</p>"}}.
+    Если файла нет — используется детерминированный генератор ниже."""
+    path = os.path.join(HERE, "ai-descriptions.json")
+    if os.path.exists(path):
+        try:
+            return json.load(open(path, encoding="utf-8")) or {}
+        except Exception as e:
+            print("⚠ ai-descriptions.json не прочитан:", e)
+    return {}
+
+
+AI_DESCRIPTIONS = _load_ai_descriptions()
+
+
+def _seed(slug):
+    return int(hashlib.md5(("hw:" + slug).encode("utf-8")).hexdigest(), 16)
+
+
+def _pick(pool, seed, shift):
+    return pool[(seed >> shift) % len(pool)]
+
+
+def _area_int(a):
+    if not a:
+        return None
+    return int(a) if float(a) == int(a) else a
+
+
+def project_kind(p):
+    """Назначение объекта — для корректной подачи описания."""
+    nm = (p.get("name") or "").lower()
+    grp = (p.get("group") or "").lower()
+    if "бан" in nm or "бан" in grp:
+        return "баня"
+    if "гараж" in nm:
+        return "гараж"
+    if any(w in nm for w in ("склад", "ангар", "цех", "коммерч", "офис", "магазин")) or "коммерч" in grp:
+        return "коммерческий объект"
+    if "модул" in nm or "модул" in grp:
+        return "модульный дом"
+    if "дач" in nm:
+        return "дачный дом"
+    return "дом"
+
+
+def build_description(p):
+    """Возвращает HTML-абзацы описания (~150–220 слов), уникальные на проект.
+    Приоритет — AI-текст из ai-descriptions.json; иначе детерминированный генератор."""
+    ai = AI_DESCRIPTIONS.get(p["slug"])
+    if ai and ai.get("desc"):
+        return ai["desc"]
+    seed = _seed(p["slug"])
+    kind = project_kind(p)
+    nm = p["name"]
+    area = _area_int(p.get("area"))
+
+    # 1) Вводное предложение — реальные характеристики проекта
+    facts = []
+    if area:
+        facts.append("общей площадью %s м²" % area)
+    if p.get("floors_txt"):
+        facts.append(p["floors_txt"].rstrip(". ").lower())
+    intro_tpl = _pick([
+        "«%s» — %s из СИП-панелей%s.",
+        "Проект «%s» — %s по технологии СИП%s.",
+        "«%s» — готовый %s из СИП-панелей HotWell.kz%s.",
+        "%s — %s из СИП-панелей под ключ%s.",
+    ], seed, 0)
+    tail = (", " + ", ".join(facts)) if facts else ""
+    intro = intro_tpl % (nm, kind, tail)
+
+    # 2) Планировка — только если есть данные
+    plan_bits = []
+    if p.get("bedrooms"):
+        plan_bits.append("%d спальни" % p["bedrooms"] if 2 <= p["bedrooms"] <= 4 else "%d спален" % p["bedrooms"])
+    if p.get("dims"):
+        plan_bits.append("габариты %s м" % p["dims"].rstrip(". "))
+    if p.get("height"):
+        plan_bits.append("высота этажей %s" % p["height"].rstrip(". "))
+    plan = ""
+    if plan_bits:
+        plan = _pick([
+            " Планировка предусматривает %s.",
+            " В проекте — %s.",
+            " Характеристики: %s.",
+        ], seed, 8) % ", ".join(plan_bits)
+
+    # 3) Технология СИП — пул преимуществ
+    tech = _pick([
+        "Несущие стены собираются из СИП-панелей толщиной 158 мм (OSB-3 и пенополистирол ПСБ-С-20Ф): такой контур держит тепло зимой и прохладу летом, а счета за отопление выходят заметно ниже, чем у кирпича и газоблока.",
+        "Дом возводится из заводских СИП-панелей 158 мм — это сплошной утеплённый контур без мостиков холода, поэтому отопление обходится дешевле, а внутри тепло даже в сильные морозы.",
+        "СИП-панель толщиной 158 мм совмещает несущую стену и утеплитель: лёгкий вес снижает нагрузку на фундамент, а высокая энергоэффективность экономит на отоплении каждый сезон.",
+        "Стены из СИП-панелей 158 мм дают ровные поверхности под чистовую отделку и отличную теплоизоляцию — комфортный микроклимат сохраняется круглый год без переплат за энергоносители.",
+    ], seed, 16)
+
+    # 4) Сроки и комплектация
+    build = _pick([
+        "Каркас собирается примерно за 30 дней, а в стоимость уже входят фундамент, индивидуальный проект, 3D-визуализация, кровля из металлочерепицы, доставка домокомплекта и монтаж штатными бригадами HotWell.kz.",
+        "Сборка занимает около месяца. В цену включены свайно-ленточный фундамент, рабочее проектирование, металлочерепица, доставка комплекта и работа собственных бригад — без скрытых доплат.",
+        "Дом сдаётся в черновой отделке за ориентировочные 30 дней: фундамент, проект, крыша, доставка и монтаж уже учтены в стоимости, а на каждый объект даётся гарантия.",
+    ], seed, 24)
+
+    # 5) География — локальный SEO-сигнал
+    c1 = _pick(GEO_CITIES, seed, 32)
+    c2 = _pick(GEO_CITIES, seed, 40)
+    if c2 == c1:
+        c2 = GEO_CITIES[(GEO_CITIES.index(c1) + 1) % len(GEO_CITIES)]
+    geo = _pick([
+        " Строим «%s» в %s, %s и других городах Казахстана с доставкой домокомплекта по всей стране.",
+        " Возводим проект в %s, %s и любом регионе Казахстана.",
+        " Доступно для строительства в %s, %s и по всему Казахстану.",
+    ], seed, 48)
+    if "%s" in geo and geo.count("%s") == 3:
+        geo = geo % (nm, c1, c2)
+    else:
+        geo = geo % (c1, c2)
+
+    # 6) Призыв к действию
+    cta = _pick([
+        "Рассчитайте точную стоимость онлайн за 5 минут или напишите в WhatsApp — зафиксируем цену и сроки в договоре.",
+        "Узнайте итоговую цену под ваш участок и комплектацию — расчёт онлайн за 5 минут, цена и сроки закрепляются договором.",
+        "Оставьте заявку, чтобы получить смету и график строительства; стоимость и сроки фиксируем в договоре.",
+    ], seed, 56)
+
+    p1 = intro + plan + " " + tech
+    p2 = build + geo + " " + cta
+    return "<p>%s</p><p>%s</p>" % (p1, p2)
+
+
+def build_faq(p):
+    """FAQ-блок (HTML) + данные для FAQPage-разметки. Ответы фактологичны."""
+    area = _area_int(p.get("area"))
+    price_txt = ("от %s" % fmt_price(p["price"])) if p.get("price") else "по запросу после расчёта"
+    qa = [
+        ("Сколько стоит построить проект «%s»?" % p["name"],
+         "Стоимость — %s в черновой отделке. Точную цену рассчитываем под ваш участок и комплектацию онлайн за 5 минут и фиксируем в договоре." % price_txt),
+        ("Что входит в стоимость?",
+         "Свайно-ленточный фундамент, индивидуальный архитектурный проект, рабочее проектирование, 3D-визуализация, стены из СИП-панелей 158 мм, кровля из металлочерепицы, доставка домокомплекта и монтаж штатными бригадами HotWell.kz. На объект действует гарантия 1 год."),
+        ("Сколько длится строительство?",
+         "Сборка домокомплекта занимает около 30 дней (срок зависит от погоды и сложности проекта). Вы получаете фотоотчёты со стройки на каждом этапе."),
+        ("В каких городах вы строите?",
+         "Работаем по всему Казахстану: Алматы, Астана, Шымкент, Караганда, Актобе и другие регионы. Домокомплект доставляем в любую точку страны."),
+    ]
+    if area:
+        qa.insert(1, ("Какая площадь дома «%s»?" % p["name"],
+                      "Общая площадь проекта — %s м²%s." % (
+                          area,
+                          (", " + p["floors_txt"].rstrip(". ").lower()) if p.get("floors_txt") else "")))
+    rows = "".join(
+        '<details class="faq-item"><summary>%s</summary><div class="faq-a">%s</div></details>'
+        % (esc(q), esc(a)) for q, a in qa)
+    html_block = '<section class="pg-faq"><h2 style="text-transform:none;font-size:1.4rem">Частые вопросы</h2>%s</section>' % rows
+    faq_ld = {"@context": "https://schema.org", "@type": "FAQPage",
+              "mainEntity": [{"@type": "Question", "name": q,
+                              "acceptedAnswer": {"@type": "Answer", "text": a}} for q, a in qa]}
+    return html_block, faq_ld
+
+
 def project_page(p, prv=None, nxt=None, sim=None):
     url = "%s/proekty/%s.html" % (BASE_URL, p["slug"])
     specs = []
@@ -297,15 +467,15 @@ def project_page(p, prv=None, nxt=None, sim=None):
                       {"@type": "ListItem", "position": 1, "name": "Главная", "item": BASE_URL + "/"},
                       {"@type": "ListItem", "position": 2, "name": "Каталог проектов", "item": BASE_URL + "/proekty.html"},
                       {"@type": "ListItem", "position": 3, "name": p["name"], "item": url}]}
-    ld_json = json.dumps([ld, breadcrumb], ensure_ascii=False)
+    ld_list = [ld, breadcrumb]
 
     price_block = ('<div class="pg-price">от %s</div>' % fmt_price(p["price"])) if p["price"] else \
                   '<div class="pg-price pg-price--ask">Цена по запросу</div>'
-    # чистим описание: убираем литеральные "\n" и пустые блоки из выгрузки WooCommerce
-    desc = (p["desc"] or "").replace("\\n", " ").replace("\\r", " ").replace("\\t", " ")
-    desc = re.sub(r"[ \t\xa0]+", " ", desc).strip()
-    desc_text = re.sub(r"<[^>]+>", "", desc).replace("&nbsp;", "").strip()
-    desc_block = ('<div class="pg-desc"><h2 style="text-transform:none;font-size:1.4rem">Описание</h2>%s</div>' % desc) if desc_text else ""
+    # Уникальное SEO-описание из достоверных характеристик проекта + FAQ с FAQPage-разметкой
+    desc_block = ('<div class="pg-desc"><h2 style="text-transform:none;font-size:1.4rem">Описание</h2>%s</div>'
+                  % build_description(p))
+    faq_block, faq_ld = build_faq(p)
+    ld_json = json.dumps(ld_list + [faq_ld], ensure_ascii=False)
 
     # навигация между проектами + похожие
     nav_html = ""
@@ -371,6 +541,7 @@ __HEADER__
     </div>
     __INCLUDES__
     __DESCBLOCK__
+    __FAQ__
     __SIMILAR__
     __NAV__
     <p style="margin-top:24px"><a href="../proekty.html" class="post-more">&larr; Весь каталог проектов</a></p>
@@ -419,6 +590,7 @@ __BOTTOM__
         "__NAME__": esc(p["name"]), "__MAIN__": esc(p["img"]), "__THUMBS__": thumbs,
         "__GROUP__": esc(p["group"]), "__PRICE__": price_block, "__SPECS__": specs_html,
         "__WA__": esc(wa_link(p["name"])), "__DESCBLOCK__": desc_block,
+        "__FAQ__": faq_block,
         "__INCLUDES__": includes_table(), "__BOTTOM__": mobile_bar("../"),
         "__GALJSON__": json.dumps(p["images"][:20], ensure_ascii=False),
         "__NAMEJSON__": json.dumps(p["name"], ensure_ascii=False),
@@ -715,16 +887,29 @@ def update_index(items):
 
 
 def write_sitemap(items):
-    urls = [BASE_URL + "/", BASE_URL + "/proekty.html",
-            BASE_URL + "/politika-konfidencialnosti.html",
-            BASE_URL + "/polzovatelskoe-soglashenie.html"]
-    blog = os.path.join(SITE, "blog")
-    if os.path.isdir(blog):
-        for f in sorted(os.listdir(blog)):
-            if f.endswith(".html"):
-                urls.append("%s/blog/%s" % (BASE_URL, f))
-    for p in items:
-        urls.append("%s/proekty/%s.html" % (BASE_URL, p["slug"]))
+    # Собираем карту сайта со ВСЕХ .html на диске (корневые SEO-лендинги по городам,
+    # блог, страницы проектов и служебные), чтобы не потерять страницы, которые
+    # генерируются другими скиллами. index.html отдаём как корень "/".
+    skip = {"404.html"}
+    rels = set()
+    for root, _dirs, files in os.walk(SITE):
+        rel_dir = os.path.relpath(root, SITE)
+        if rel_dir.split(os.sep)[0] in ("assets", "css", "js"):
+            continue
+        for f in files:
+            if not f.endswith(".html") or f in skip:
+                continue
+            # не включаем внутренние/закрытые страницы (noindex)
+            try:
+                head = open(os.path.join(root, f), encoding="utf-8").read(4000)
+            except Exception:
+                head = ""
+            if "noindex" in head.lower():
+                continue
+            rels.add(f if rel_dir == "." else rel_dir.replace(os.sep, "/") + "/" + f)
+    urls = []
+    for rel in sorted(rels):
+        urls.append(BASE_URL + "/" if rel == "index.html" else "%s/%s" % (BASE_URL, rel))
     body = "".join("  <url><loc>%s</loc></url>\n" % esc(u) for u in urls)
     sm = '<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n' + body + "</urlset>\n"
     open(os.path.join(SITE, "sitemap.xml"), "w", encoding="utf-8").write(sm)

@@ -17,7 +17,10 @@ description: >
 - Раскладывает товары по разделам (Проекты, Построенные объекты, Модульные, Домокомплекты и т.д.).
 - Генерирует:
   - `site/proekty/<slug>.html` — страница каждого проекта: галерея, цена, характеристики,
-    кнопки «Рассчитать»/WhatsApp, мета-теги и JSON-LD `Product` (для Google/Яндекс).
+    уникальное SEO-описание (~150–220 слов, собирается из характеристик проекта с ротацией
+    формулировок по хешу слага — без дублей и выдумок), блок «Частые вопросы»,
+    кнопки «Рассчитать»/WhatsApp, мета-теги и JSON-LD `Product` + `BreadcrumbList` + `FAQPage`
+    (для Google/Яндекс).
   - `site/proekty.html` — каталог с фильтрами (раздел, этажность, спальни, площадь, цена, поиск, сортировка) и пагинацией.
   - `site/projects.json` — данные для каталога.
   - `site/sitemap.xml` и `site/robots.txt` — для индексации.
@@ -31,6 +34,21 @@ python3 .claude/skills/import-projects/import.py --csv путь/к/wc-product-ex
 python3 .claude/skills/import-projects/import.py
 ```
 `source.csv` — последняя использованная выгрузка (можно заменить новой и перезапустить).
+
+## AI-описания проектов (опционально)
+По умолчанию описание каждого проекта собирается детерминированно из его
+характеристик (уникально, без выдумок). Можно заменить на AI-тексты OpenAI:
+```bash
+OPENAI_API_KEY=... python3 .claude/skills/import-projects/gen_descriptions.py --limit 10  # пилот
+OPENAI_API_KEY=... python3 .claude/skills/import-projects/gen_descriptions.py             # все 550
+python3 .claude/skills/import-projects/import.py                                           # пересобрать страницы
+```
+- `gen_descriptions.py` пишет тексты в `ai-descriptions.json` (`{slug: {desc, hash, model}}`),
+  инкрементально (повторный запуск с тем же набором характеристик ничего не стоит; `--force` — заново).
+- `import.py` при сборке берёт описание из `ai-descriptions.json`, если оно есть, иначе — детерминированное.
+- В среде Claude Code on the web OpenAI обычно заблокирован сетевой политикой, поэтому генерацию
+  запускают через GitHub Action `.github/workflows/ai-descriptions.yml` (кнопка Run workflow;
+  ключ берётся из `OPENAI_API_KEY` в Secrets/Variables). Стоимость ~$0.15 (gpt-4o-mini) / ~$2.5 (gpt-4o) на 550.
 
 ## После запуска (шаги для агента)
 1. Проверить HTML (`index.html`, `proekty.html`, пара страниц из `proekty/`).

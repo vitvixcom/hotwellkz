@@ -1,0 +1,73 @@
+name: AI-описания проектов
+
+# Запуск вручную (кнопка Run workflow). Генерирует уникальные SEO-описания
+# для страниц проектов через OpenAI, перегенерирует страницы и коммитит.
+on:
+  workflow_dispatch:
+    inputs:
+      limit:
+        description: "Сколько проектов обработать (0 — все 550; для пилота поставьте 10)"
+        required: false
+        default: "10"
+      model:
+        description: "Модель OpenAI"
+        required: false
+        default: "gpt-4o-mini"
+      force:
+        description: "Перегенерировать даже закэшированные (true/false)"
+        required: false
+        default: "false"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: ai-descriptions
+  cancel-in-progress: false
+
+jobs:
+  generate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Сгенерировать AI-описания
+        env:
+          # Работает и с Secret, и с Variable с именем OPENAI_API_KEY
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY || vars.OPENAI_API_KEY }}
+          LIMIT: ${{ github.event.inputs.limit }}
+          MODEL: ${{ github.event.inputs.model }}
+          FORCE: ${{ github.event.inputs.force }}
+        run: |
+          if [ -z "$OPENAI_API_KEY" ]; then
+            echo "::error::OPENAI_API_KEY не задан. Добавьте его в Settings → Secrets and variables → Actions (лучше как Secret)."
+            exit 1
+          fi
+          ARGS="--model $MODEL"
+          if [ "${LIMIT:-0}" != "0" ]; then ARGS="$ARGS --limit $LIMIT"; fi
+          if [ "$FORCE" = "true" ]; then ARGS="$ARGS --force"; fi
+          echo "Запуск: gen_descriptions.py $ARGS"
+          python3 .claude/skills/import-projects/gen_descriptions.py $ARGS
+
+      - name: Перегенерировать страницы проектов
+        run: python3 .claude/skills/import-projects/import.py
+
+      - name: Закоммитить и запушить
+        run: |
+          git config user.name "hotwellkz"
+          git config user.email "hotwell.kz@gmail.com"
+          git add .claude/skills/import-projects/ai-descriptions.json \
+                  site/proekty site/proekty.html site/projects.json \
+                  site/sitemap.xml site/robots.txt site/index.html
+          if git diff --cached --quiet; then
+            echo "Нет изменений — описания не обновились."
+            exit 0
+          fi
+          git commit -m "SEO: AI-описания проектов (автогенерация)"
+          git push
