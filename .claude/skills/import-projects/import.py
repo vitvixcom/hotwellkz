@@ -128,6 +128,21 @@ def tidy_name(s):
     return re.sub(r"\s+", " ", s).strip(" -–—")
 
 
+# уникализация одинаковых отображаемых имён (буква к коду: Б-160 → Б-160А/Б/В…)
+VARIANT_LETTERS = "АБВГДЕЖЗИКЛМНОПРСТУФХ"
+
+
+def _norm_name(s):
+    """Нормализация для сравнения имён: без ёлочек/кавычек, регистра и лишних пробелов."""
+    return re.sub(r"\s+", " ", (s or "").replace("«", "").replace("»", "").replace('"', "")).strip().lower()
+
+
+def _variant_letter_name(name, letter):
+    """Добавляет букву к коду проекта (первое «Буква-Цифры» в имени): Б-160 → Б-160Б."""
+    new = re.sub(r"([А-ЯЁA-Z]-\d{2,4})", lambda m: m.group(1) + letter, name, count=1)
+    return new if new != name else (name.rstrip() + " " + letter)
+
+
 def detect_group(cats):
     for token, name in GROUP_RULES:
         for c in cats:
@@ -218,6 +233,16 @@ def parse_csv(path):
             if est:
                 p["price"] = est
                 p["price_est"] = True
+    # Уникализация одинаковых имён: каждому в группе — буква к коду (А, Б, В…).
+    # Слаги-URL не меняем (они уже уникальны), только отображаемое имя.
+    groups = {}
+    for p in items:
+        groups.setdefault(_norm_name(p["name"]), []).append(p)
+    for grp in groups.values():
+        if len(grp) > 1:
+            for i, p in enumerate(grp):
+                letter = VARIANT_LETTERS[i] if i < len(VARIANT_LETTERS) else "-%d" % (i + 1)
+                p["name"] = _variant_letter_name(p["name"], letter)
     return items
 
 
