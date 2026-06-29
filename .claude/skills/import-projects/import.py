@@ -76,6 +76,16 @@ def clean_name(s):
     return re.sub(r"\s+", " ", s).strip(" -–—")
 
 
+def tidy_name(s):
+    """Косметика отображаемого имени (после генерации слага, чтобы URL не менялись):
+    убирает залётные угловые скобки и разлепляет «код+площадь» (А-100100 → А-100 100)."""
+    s = re.sub(r"\s*[<>]\s*", " ", s)
+    # площадь продублирована сразу после числа кода без пробела: А-100100 м2 → А-100 100 м2
+    s = re.sub(r"([А-ЯЁA-Z]-(\d{2,3}))(\2)(?=\s*(?:м²|м2|кв))",
+               lambda m: "%s %s" % (m.group(1), m.group(2)), s)
+    return re.sub(r"\s+", " ", s).strip(" -–—")
+
+
 def detect_group(cats):
     for token, name in GROUP_RULES:
         for c in cats:
@@ -111,6 +121,7 @@ def parse_csv(path):
         while slug in seen:
             slug = "%s-%d" % (base, n); n += 1
         seen.add(slug)
+        name = tidy_name(name)  # косметика имени уже после слага — URL не меняются
 
         def find(*keys, exclude=()):
             for k in attrs:
