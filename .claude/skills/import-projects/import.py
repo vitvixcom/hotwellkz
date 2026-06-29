@@ -756,7 +756,9 @@ def catalog_page(groups, price_max, area_max, items=None, price_step=100000, are
     # projects.json. Все страницы в любом случае есть в sitemap.xml и перелинкованы.
     SSR_CAP = 300
     design_items = [p for p in (items or []) if p["group"] != "Построенные объекты"]
-    ssr_items = sorted(design_items, key=lambda p: (p["area"] or 0, p["name"]))[:SSR_CAP]
+    # Порядок SSR = сортировка по умолчанию «дешевле первым» (price ↑); позиции без
+    # цены («по запросу») — в конце. Совпадает с дефолтом JS, чтобы первый экран был верным.
+    ssr_items = sorted(design_items, key=lambda p: (p["price"] if p["price"] else float("inf"), p["name"]))[:SSR_CAP]
     cards_html = "".join(_catalog_card_html(p) for p in ssr_items)
     tpl = """<!DOCTYPE html>
 <html lang="ru">
@@ -802,7 +804,7 @@ __HEADER__
         <button id="filtersToggle" class="btn btn--primary filters-toggle"><svg width="18"><use href="#i-filter"/></svg> Фильтры и сортировка<span id="fCountBadge" class="fbadge" hidden></span><span class="ftgl-chev" aria-hidden="true">▾</span></button>
         <span id="catCount" class="cat-count">—</span>
         <label class="toolbar-sort">Сортировка
-          <select id="fSort"><option value="area-asc">Площадь ↑</option><option value="area-desc">Площадь ↓</option><option value="price-asc">Цена ↑</option><option value="price-desc">Цена ↓</option></select>
+          <select id="fSort"><option value="price-asc" selected>Цена ↑</option><option value="price-desc">Цена ↓</option><option value="area-asc">Площадь ↑</option><option value="area-desc">Площадь ↓</option></select>
         </label>
       </div>
       <div class="chips" id="quickChips">
@@ -900,7 +902,7 @@ function apply(){
   view.sort(function(a,b){
     if(s==='area-asc') return (a.area||0)-(b.area||0) || a.name.localeCompare(b.name);
     if(s==='area-desc') return (b.area||0)-(a.area||0);
-    if(s==='price-asc') return (a.price||0)-(b.price||0);
+    if(s==='price-asc'){ var ap=a.price||Infinity, bp=b.price||Infinity; return ap-bp || a.name.localeCompare(b.name); }
     if(s==='price-desc') return (b.price||0)-(a.price||0);
     return 0;
   });
@@ -930,6 +932,8 @@ function priceActive(){ return (+$('fPriceMin').value>0) || (+$('fPriceMax').val
 function areaActive(){ return (+$('fAreaMin').value>0) || (+$('fAreaMax').value < +$('fAreaMax').max); }
 function activeCount(){ var c=0; FIELDS.forEach(function(id){ if(($(id).value||'').trim()) c++; }); if(priceActive()) c++; if(areaActive()) c++; return c; }
 FIELDS.concat(['fSort']).forEach(function(id){ $(id).addEventListener('input', apply); });
+// Выбор сортировки запоминаем на устройстве — на следующий визит восстановится.
+$('fSort').addEventListener('change', function(){ try{ localStorage.setItem('projSort', $('fSort').value); }catch(e){} });
 // Двойные ползунки (цена + площадь) — общий инициализатор
 function initRange(loId, hiId, fillId, minId, maxId){
   var lo=$(loId), hi=$(hiId), fill=$(fillId);
@@ -972,7 +976,7 @@ $('catMore').addEventListener('click', render);
   new IntersectionObserver(function(es){ if(es[0].isIntersecting) autoFill(); }, {rootMargin:'700px 0px'}).observe(s);
 })();
 $('catReset').addEventListener('click', function(){
-  FIELDS.forEach(function(id){$(id).value='';}); $('fSort').value='area-asc'; priceR.reset(); areaR.reset(); apply();
+  FIELDS.forEach(function(id){$(id).value='';}); priceR.reset(); areaR.reset(); apply();
 });
 // Фильтры: панель выезжает сбоку по ТАПУ; edge-tab появляется при прокрутке вниз
 var fab=$('filterFab'), toolbarVisible=true, fabTimer=null;
@@ -1017,7 +1021,7 @@ document.addEventListener('keydown', function(e){ if(e.key==='Escape') closeF();
       btn.classList.add('is-on'); btn.setAttribute('aria-selected','true');
       mode=btn.getAttribute('data-mode');
       var h=$('catModeHint'); if(h) h.textContent=hints[mode]||'';
-      FIELDS.forEach(function(id){$(id).value='';}); $('fSort').value='area-asc'; priceR.reset(); areaR.reset();
+      FIELDS.forEach(function(id){$(id).value='';}); priceR.reset(); areaR.reset();
       apply();
       var a=document.querySelector('.catalog-sticky'); if(a) a.scrollIntoView({block:'start'});
     });
@@ -1047,13 +1051,17 @@ document.addEventListener('keydown', function(e){ if(e.key==='Escape') closeF();
 })();
 fetch('projects.json').then(function(r){return r.json()}).then(function(d){
   all=d;
+  // Сортировка: восстанавливаем сохранённую, иначе дефолт «дешевле первым» (price-asc).
+  var savedSort; try{ savedSort=localStorage.getItem('projSort'); }catch(e){}
+  var sortVal = ['area-asc','area-desc','price-asc','price-desc'].indexOf(savedSort)>=0 ? savedSort : 'price-asc';
+  $('fSort').value = sortVal;
   var pg=null; try{ pg=new URLSearchParams(location.search).get('group'); }catch(e){}
   if(pg){ $('fGroup').value=pg; apply(); return; }
-  // По умолчанию режим «Проекты домов»: SSR-карточки уже отрисованы (без построенных),
-  // не перерисовываем — только синхронизируем счётчики. Остальные догружаются при
-  // прокрутке, построенные — по вкладке. Полное перестроение — при первом фильтре.
+  // SSR отрисован в порядке price-asc (дефолт). Если сохранённая сортировка другая —
+  // перестраиваем; иначе оставляем SSR-карточки, только синхронизируем счётчики.
+  if(sortVal!=='price-asc'){ apply(); return; }
   view=all.filter(function(p){return p.group!=='Построенные объекты';})
-          .sort(function(a,b){return (a.area||0)-(b.area||0) || a.name.localeCompare(b.name);});
+          .sort(function(a,b){ var ap=a.price||Infinity, bp=b.price||Infinity; return ap-bp || a.name.localeCompare(b.name); });
   shown=$('catGrid').children.length;
   $('catCount').textContent='Найдено: '+view.length;
   $('applyCount').textContent='('+view.length+')';
