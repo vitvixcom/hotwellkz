@@ -34,7 +34,7 @@ for v in rows:
     if str(v[0]).startswith(DONE_UNTIL):
         break
 
-FLOORS = ["1 этаж", "1,5 этажа", "2 этажа", "3 этажа"]
+FLOORS = ["1 этаж", "1,5 этажа", "2 этажа"]   # 1,5 = мансардный
 HEIGHTS = ["2,5 м", "2,8 м", "2,9 м", "3,0 м", "3,5 м", "4,0 м"]
 HEIGHTS2 = ["—"] + HEIGHTS
 ROOFS = ["1-скатная", "2-скатная", "4-скатная"]
@@ -43,11 +43,9 @@ SHAPES = ["Простая", "Сложная"]
 
 def norm_floors(v):
     s = str(v or "").lower()
-    if "3" in s:
-        return "3 этажа"
     if "1.5" in s or "1,5" in s or "мансард" in s:
         return "1,5 этажа"
-    if "2" in s:
+    if "2" in s or "3" in s:   # 3-этажные сводим к «2 этажа» — оставляем только 3 варианта
         return "2 этажа"
     return "1 этаж"
 
@@ -101,20 +99,35 @@ for r in range(2, nrows + 1):
             cell.fill = donefill
 
 
-def add_dv(col_idx, options, allow_blank=True):
-    dv = DataValidation(type="list", formula1='"%s"' % ",".join(options),
-                        allow_blank=allow_blank, showErrorMessage=True)
+# Значения с запятыми («1,5 этажа», «2,5 м») нельзя задавать инлайн (запятая —
+# разделитель списка). Кладём списки на скрытый лист и ссылаемся диапазоном.
+lists = wb.create_sheet("Списки")
+ranges = {}
+_col = 1
+for key, opts in [("floors", FLOORS), ("h1", HEIGHTS), ("h2", HEIGHTS2),
+                  ("roof", ROOFS), ("shape", SHAPES)]:
+    for i, o in enumerate(opts, 1):
+        lists.cell(row=i, column=_col, value=o)
+    cl = get_column_letter(_col)
+    ranges[key] = "Списки!$%s$1:$%s$%d" % (cl, cl, len(opts))
+    _col += 1
+lists.sheet_state = "hidden"
+
+
+def add_dv(col_idx, ref, allow_blank=True):
+    dv = DataValidation(type="list", formula1=ref, allow_blank=allow_blank, showErrorMessage=True)
     dv.error = "Выберите значение из списка"; dv.prompt = "Выберите из списка"
     ws.add_data_validation(dv)
     col = get_column_letter(col_idx); dv.add("%s2:%s%d" % (col, col, nrows))
 
 
-add_dv(1, ["✓"])
-add_dv(7, FLOORS, allow_blank=False)
-add_dv(10, HEIGHTS)
-add_dv(11, HEIGHTS2)
-add_dv(12, ROOFS)
-add_dv(13, SHAPES)
+_ok = DataValidation(type="list", formula1='"✓"', allow_blank=True)
+ws.add_data_validation(_ok); _ok.add("A2:A%d" % nrows)
+add_dv(7, ranges["floors"], allow_blank=False)
+add_dv(10, ranges["h1"])
+add_dv(11, ranges["h2"])
+add_dv(12, ranges["roof"])
+add_dv(13, ranges["shape"])
 
 widths = [9, 26, 44, 30, 20, 11, 13, 9, 13, 14, 14, 15, 13, 14, 11]
 for i, w in enumerate(widths, 1):
