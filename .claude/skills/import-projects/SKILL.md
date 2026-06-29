@@ -35,6 +35,21 @@ python3 .claude/skills/import-projects/import.py
 ```
 `source.csv` — последняя использованная выгрузка (можно заменить новой и перезапустить).
 
+## AI-описания проектов (опционально)
+По умолчанию описание каждого проекта собирается детерминированно из его
+характеристик (уникально, без выдумок). Можно заменить на AI-тексты OpenAI:
+```bash
+OPENAI_API_KEY=... python3 .claude/skills/import-projects/gen_descriptions.py --limit 10  # пилот
+OPENAI_API_KEY=... python3 .claude/skills/import-projects/gen_descriptions.py             # все 550
+python3 .claude/skills/import-projects/import.py                                           # пересобрать страницы
+```
+- `gen_descriptions.py` пишет тексты в `ai-descriptions.json` (`{slug: {desc, hash, model}}`),
+  инкрементально (повторный запуск с тем же набором характеристик ничего не стоит; `--force` — заново).
+- `import.py` при сборке берёт описание из `ai-descriptions.json`, если оно есть, иначе — детерминированное.
+- В среде Claude Code on the web OpenAI обычно заблокирован сетевой политикой, поэтому генерацию
+  запускают через GitHub Action `.github/workflows/ai-descriptions.yml` (кнопка Run workflow;
+  ключ берётся из `OPENAI_API_KEY` в Secrets/Variables). Стоимость ~$0.15 (gpt-4o-mini) / ~$2.5 (gpt-4o) на 550.
+
 ## После запуска (шаги для агента)
 1. Проверить HTML (`index.html`, `proekty.html`, пара страниц из `proekty/`).
 2. Закоммитить и запушить: `site/proekty/`, `site/proekty.html`, `site/projects.json`,
