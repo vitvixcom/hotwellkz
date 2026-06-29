@@ -136,7 +136,9 @@ def detect_group(cats):
     return "Разное"
 
 
-REMOVED_OLD_SLUGS = []  # старые слаги убранных из каталога позиций (для 301 → главная)
+REMOVED_OLD_SLUGS = []  # слаги удалённых позиций (для 301 → каталог)
+# Позиции, удалённые вручную из каталога (по ЧПУ-слагу из имени).
+DELETE_SLUGS = {"domokomplekt", "e-98-m2"}
 
 
 def parse_csv(path):
@@ -177,6 +179,10 @@ def parse_csv(path):
         while slug in seen_new:
             slug = "%s-%d" % (new_base, n); n += 1
         seen_new.add(slug)
+        # удалённые вручную позиции — пропускаем, их URL 301-редиректим на каталог
+        if slug in DELETE_SLUGS:
+            REMOVED_OLD_SLUGS.extend([old_slug, slug])
+            continue
 
         def find(*keys, exclude=()):
             for k in attrs:
@@ -1236,7 +1242,7 @@ def write_redirects(items):
             add("/proekty/%s.html  /proekty/%s.html  301" % (o, n))
     for o in REMOVED_OLD_SLUGS:
         if o not in live_new:
-            add("/proekty/%s.html  /  301" % o)
+            add("/proekty/%s.html  /proekty.html  301" % o)
 
     path = os.path.join(SITE, "_redirects")
     open(path, "w", encoding="utf-8").write("\n".join(lines) + ("\n" if lines else ""))
