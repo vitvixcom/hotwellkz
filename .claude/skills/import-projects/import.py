@@ -887,16 +887,29 @@ def update_index(items):
 
 
 def write_sitemap(items):
-    urls = [BASE_URL + "/", BASE_URL + "/proekty.html",
-            BASE_URL + "/politika-konfidencialnosti.html",
-            BASE_URL + "/polzovatelskoe-soglashenie.html"]
-    blog = os.path.join(SITE, "blog")
-    if os.path.isdir(blog):
-        for f in sorted(os.listdir(blog)):
-            if f.endswith(".html"):
-                urls.append("%s/blog/%s" % (BASE_URL, f))
-    for p in items:
-        urls.append("%s/proekty/%s.html" % (BASE_URL, p["slug"]))
+    # Собираем карту сайта со ВСЕХ .html на диске (корневые SEO-лендинги по городам,
+    # блог, страницы проектов и служебные), чтобы не потерять страницы, которые
+    # генерируются другими скиллами. index.html отдаём как корень "/".
+    skip = {"404.html"}
+    rels = set()
+    for root, _dirs, files in os.walk(SITE):
+        rel_dir = os.path.relpath(root, SITE)
+        if rel_dir.split(os.sep)[0] in ("assets", "css", "js"):
+            continue
+        for f in files:
+            if not f.endswith(".html") or f in skip:
+                continue
+            # не включаем внутренние/закрытые страницы (noindex)
+            try:
+                head = open(os.path.join(root, f), encoding="utf-8").read(4000)
+            except Exception:
+                head = ""
+            if "noindex" in head.lower():
+                continue
+            rels.add(f if rel_dir == "." else rel_dir.replace(os.sep, "/") + "/" + f)
+    urls = []
+    for rel in sorted(rels):
+        urls.append(BASE_URL + "/" if rel == "index.html" else "%s/%s" % (BASE_URL, rel))
     body = "".join("  <url><loc>%s</loc></url>\n" % esc(u) for u in urls)
     sm = '<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n' + body + "</urlset>\n"
     open(os.path.join(SITE, "sitemap.xml"), "w", encoding="utf-8").write(sm)
