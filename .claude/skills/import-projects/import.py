@@ -38,6 +38,14 @@ def esc(s):
     return _html.escape(s or "", quote=True)
 
 
+def css_ver():
+    """Версия style.css (mtime) для сброса кэша браузера при изменении стилей."""
+    try:
+        return str(int(os.path.getmtime(os.path.join(SITE, "css", "style.css"))))
+    except Exception:
+        return "1"
+
+
 def slugify(text):
     text = (text or "").lower().strip()
     out = []
@@ -470,12 +478,16 @@ def geo_links_block(prefix="../"):
         if not cl:
             _GEO_CACHE[prefix] = ""
         else:
-            links = "".join(
-                '<a class="geo-link" href="%s%s">Дома из СИП-панелей в г. %s</a>'
+            # короткие подписи-плашки (город), с пробелами между ссылками —
+            # читается даже без CSS; ключевой запрос вынесен в заголовок и лид
+            links = "\n          ".join(
+                '<a class="geo-link" href="%s%s">г. %s</a>'
                 % (prefix, esc(fn), esc(name)) for name, fn in cl)
             _GEO_CACHE[prefix] = (
-                '<section class="geo-links"><h2>Строим дома из СИП-панелей по всему Казахстану</h2>'
-                '<div class="geo-links__row">%s</div></section>' % links)
+                '<section class="geo-links">'
+                '<h2>Дома из СИП-панелей по городам Казахстана</h2>'
+                '<p class="geo-links__lead">Построим этот или похожий проект в вашем городе — выберите регион:</p>'
+                '<div class="geo-links__row">\n          %s\n        </div></section>' % links)
     return _GEO_CACHE[prefix]
 
 
@@ -567,7 +579,7 @@ def project_page(p, prv=None, nxt=None, sim=None):
 <meta property="og:url" content="__URL__">
 <meta property="og:image" content="__OGIMG__">
 <meta name="twitter:card" content="summary_large_image">
-<link rel="stylesheet" href="../css/style.css">
+<link rel="stylesheet" href="../css/style.css?v=__CSSVER__">
 <script type="application/ld+json">__LD__</script>
 </head>
 <body>
@@ -646,7 +658,7 @@ __BOTTOM__
         "__NAME__": esc(p["name"]), "__MAIN__": esc(p["img"]), "__THUMBS__": thumbs,
         "__GROUP__": esc(p["group"]), "__PRICE__": price_block, "__SPECS__": specs_html,
         "__WA__": esc(wa_link(p["name"])), "__DESCBLOCK__": desc_block,
-        "__FAQ__": faq_block, "__GEO__": geo_links_block("../"),
+        "__FAQ__": faq_block, "__GEO__": geo_links_block("../"), "__CSSVER__": css_ver(),
         "__INCLUDES__": includes_table(), "__BOTTOM__": mobile_bar("../"),
         "__GALJSON__": json.dumps(p["images"][:20], ensure_ascii=False),
         "__NAMEJSON__": json.dumps(p["name"], ensure_ascii=False),
@@ -710,7 +722,7 @@ def catalog_page(groups, price_max, area_max, items=None, price_step=100000, are
 <meta property="og:url" content="__BASE__/proekty.html">
 <meta property="og:image" content="__BASE__/assets/og-cover.png">
 <meta name="twitter:card" content="summary_large_image">
-<link rel="stylesheet" href="css/style.css">
+<link rel="stylesheet" href="css/style.css?v=__CSSVER__">
 <script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Главная","item":"__BASE__/"},{"@type":"ListItem","position":2,"name":"Каталог проектов","item":"__BASE__/proekty.html"}]}</script>
 <script type="application/ld+json">{"@context":"https://schema.org","@type":"CollectionPage","name":"Каталог проектов домов из СИП-панелей","description":"Готовые проекты домов из СИП-панелей с ценами и планировками.","url":"__BASE__/proekty.html","isPartOf":{"@type":"WebSite","name":"HotWell.kz","url":"__BASE__/"}}</script>
 </head>
@@ -942,7 +954,7 @@ fetch('projects.json').then(function(r){return r.json()}).then(function(d){
 </html>"""
     for k, v in {"__BASE__": BASE_URL, "__SPRITE__": SPRITE, "__HEADER__": header(""),
                  "__FOOTER__": footer(""), "__OPTS__": opts, "__BOTTOM__": mobile_bar(""),
-                 "__CARDS__": cards_html,
+                 "__CARDS__": cards_html, "__CSSVER__": css_ver(),
                  "__PRICEMAX__": str(price_max), "__PRICESTEP__": str(price_step),
                  "__AREAMAX__": str(area_max), "__AREASTEP__": str(area_step)}.items():
         tpl = tpl.replace(k, v)
