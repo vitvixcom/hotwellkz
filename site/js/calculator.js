@@ -178,12 +178,14 @@ fill(iShape,SHAPE,function(o){return o.label;},function(o){return o.label;},SHAP
 fill(iAdd,ADD_WORKS,function(o){return o.label;},function(o){return o.label;},ADD_WORKS[0].label);
 fill(iDelivery,DELIVERY,function(o){return o.label;},function(o){return o.label;},DELIVERY[0].label);
 
+var DEFAULT_ROOF="2-скатная (строп. сист. + металлочерепица)"; // крыша по умолчанию
 function buildRoof(){
  var fl=String((findL(FLOORS,iFloors.value)||{}).value||'1');
  var list=ROOF.filter(function(o){return !o.floors||o.floors===fl;});
  var cur=iRoof.value;
  fill(iRoof,list,function(o){return o.label;},function(o){return o.label;});
- if([].slice.call(iRoof.options).some(function(o){return o.value===cur;}))iRoof.value=cur; else iRoof.value=list[0].label;
+ var has=function(v){return [].slice.call(iRoof.options).some(function(o){return o.value===v;});};
+ if(has(cur))iRoof.value=cur; else if(has(DEFAULT_ROOF))iRoof.value=DEFAULT_ROOF; else iRoof.value=list[0].label;
 }
 function buildPartition(){
  var h=parseFloat((document.getElementById('cH1')||{}).value)||2.5;
