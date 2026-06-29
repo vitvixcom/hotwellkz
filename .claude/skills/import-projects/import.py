@@ -70,6 +70,48 @@ def fmt_price(n):
     return format(int(n), ",").replace(",", " ") + " ₸" if n else ""
 
 
+# ---------- авто-оценка цены дома (движок калькулятора HotWell.kz) ----------
+# Константы строго из site/js/calculator.js. Используется ТОЛЬКО для домов
+# (группы «Проекты»/«Построенные объекты») без цены. Параметры по умолчанию:
+# фундамент Ж/Б ленточный 40 см, крыша 2-скатная, форма простая, SIP-163,
+# перегородки профиль+ГКЛ, потолок утеплённый, без доп. работ и доставки.
+# Высоты — по стандарту HotWell.kz (см. ниже). Цена без НДС, как «от».
+EST_BASE_PRICES = [(10, 24, 124781), (25, 49, 101895), (50, 74, 96589), (75, 99, 84482),
+                   (100, 149, 67661), (150, 199, 57670), (200, 249, 53309), (250, 299, 48950),
+                   (300, 349, 48400), (350, 399, 47300), (400, 499, 46200), (500, 1500, 45100)]
+EST_FOUNDATION_40 = 7691      # Ж/Б ленточ. Зас. ПГС, стяжка 80мм. Выс 40см
+EST_ROOF_2SKAT = 1616         # 2-скатная (строп. система + металлочерепица)
+EST_FLOORS_ADD = {1: 7295, 2: 1619}
+EST_H = {2.5: 0, 2.8: 3798}   # надбавка за высоту этажа
+EST_MULT = 1.1
+
+
+def _est_base(a):
+    for mn, mx, pr in EST_BASE_PRICES:
+        if mn <= a <= mx:
+            return pr
+    return 0
+
+
+def estimate_house_price(area, floors_n):
+    """Стандартная авто-оценка стоимости дома «от» (₸, без НДС и доставки).
+    Высоты: 1 этаж — 2,8 м (для домов >50 м², иначе 2,5). 2 этажа — 1-й 2,8 м,
+    2-й 2,5 м (дом ≤100 м²) или 2,8 м (дом >100 м²); для домов ≤50 м² — 2,5/2,5."""
+    base = _est_base(area)
+    if not base:
+        return 0
+    floors_add = EST_FLOORS_ADD.get(floors_n, EST_FLOORS_ADD[2])
+    if floors_n == 1:
+        h_add = EST_H[2.8] if area > 50 else EST_H[2.5]
+    else:
+        h1 = 2.8 if area > 50 else 2.5
+        h2 = (2.8 if area > 100 else 2.5) if area > 50 else 2.5
+        h_add = EST_H[h1] + EST_H[h2]
+    pps = base + floors_add + h_add + EST_FOUNDATION_40 + EST_ROOF_2SKAT
+    base_total = int(pps * area + 0.5)          # Math.round
+    return int(base_total * EST_MULT + 0.5)     # ×1.1, Math.round
+
+
 def clean_name(s):
     s = (s or "").replace('"', "").strip().strip("«»").strip()
     s = re.sub(r"\s*\(?\s*копировать\s*\)?", "", s, flags=re.IGNORECASE)  # убрать «(Копировать)»
@@ -160,6 +202,16 @@ def parse_csv(path):
             "dims": dims, "height": height,
             "images": imgs, "img": imgs[0] if imgs else "",
         })
+    # Авто-оценка цены для ДОМОВ без цены (бани/беседки/гаражи/домокомплекты —
+    # другое ценообразование, их не трогаем; остаются «Цена по запросу»).
+    for p in items:
+        p["price_est"] = False
+        if (not p["price"]) and p["area"] and p["group"] in ("Проекты", "Построенные объекты"):
+            n = 2 if (p["floors"] or 1) >= 1.5 else 1
+            est = estimate_house_price(p["area"], n)
+            if est:
+                p["price"] = est
+                p["price_est"] = True
     return items
 
 
@@ -581,8 +633,15 @@ def project_page(p, prv=None, nxt=None, sim=None):
                       {"@type": "ListItem", "position": 3, "name": p["name"], "item": url}]}
     ld_list = [ld, breadcrumb]
 
-    price_block = ('<div class="pg-price">от %s</div>' % fmt_price(p["price"])) if p["price"] else \
-                  '<div class="pg-price pg-price--ask">Цена по запросу</div>'
+    if p["price"]:
+        approx = (' <span class="pg-price-approx" title="Предварительный расчёт">≈</span>'
+                  if p.get("price_est") else '')
+        price_block = '<div class="pg-price">от %s%s</div>' % (fmt_price(p["price"]), approx)
+        if p.get("price_est"):
+            price_block += ('<p class="pg-price-note">Цена рассчитана автоматически по стандартным '
+                            'параметрам — уточните точную стоимость у менеджера.</p>')
+    else:
+        price_block = '<div class="pg-price pg-price--ask">Цена по запросу</div>'
     # Уникальное SEO-описание из достоверных характеристик проекта + FAQ с FAQPage-разметкой
     desc_block = ('<div class="pg-desc"><h2 style="text-transform:none;font-size:1.4rem">Описание</h2>%s</div>'
                   % build_description(p))
@@ -737,7 +796,12 @@ def _catalog_card_html(p):
         meta.append('<span>%s</span>' % esc(p["floors_txt"]))
     if p["bedrooms"]:
         meta.append('<span>%d сп.</span>' % p["bedrooms"])
-    price = ("от %s" % fmt_price(p["price"])) if p["price"] else "Цена по запросу"
+    if p["price"]:
+        price = "от %s" % fmt_price(p["price"])
+        if p.get("price_est"):
+            price += ' <span class="price-approx" title="Предварительный расчёт">≈</span>'
+    else:
+        price = "Цена по запросу"
     return ('<article class="project"><a class="thumb" href="proekty/%s.html">%s</a>'
             '<div class="body"><div class="price">%s</div>'
             '<h3><a href="proekty/%s.html">%s</a></h3>'
@@ -878,7 +942,7 @@ function card(p){
   if(p.bedrooms) meta.push(p.bedrooms+' сп.');
   return '<article class="project">'+
     '<a class="thumb" href="proekty/'+p.slug+'.html">'+(p.img?'<img class="thumb-i" src="'+p.img+'" alt="'+p.name.replace(/"/g,'&quot;')+'" loading="lazy">':'')+(p.img2?'<img class="thumb-i thumb-i--alt" src="'+p.img2+'" alt="" loading="lazy" aria-hidden="true">':'')+'</a>'+
-    '<div class="body"><div class="price">'+(p.price?'от '+fmtPrice(p.price):'Цена по запросу')+'</div>'+
+    '<div class="body"><div class="price">'+(p.price?'от '+fmtPrice(p.price)+(p.est?' <span class="price-approx" title="Предварительный расчёт">≈</span>':''):'Цена по запросу')+'</div>'+
     '<h3><a href="proekty/'+p.slug+'.html">'+p.name+'</a></h3>'+
     '<div class="meta">'+meta.map(function(m){return '<span>'+m+'</span>'}).join('')+'</div>'+
     '<a href="proekty/'+p.slug+'.html" class="btn btn--outline btn--block">Подробнее</a></div></article>';
@@ -1081,7 +1145,8 @@ fetch('projects.json').then(function(r){return r.json()}).then(function(d){
 
 
 def featured_cards(items, group="Проекты", n=6):
-    pool = [p for p in items if p["group"] == group and p["price"] and p["img"]]
+    # В витрину на главной — только проекты с реальной ценой (без авто-оценок)
+    pool = [p for p in items if p["group"] == group and p["price"] and p["img"] and not p.get("price_est")]
     pool.sort(key=lambda p: (p["area"] or 0))
     if not pool:
         return ""
@@ -1245,7 +1310,7 @@ def main():
               "img2": (p["images"][1] if len(p["images"]) > 1 and p["images"][1] else ""),
               "area": (int(p["area"]) if p["area"] and p["area"] == int(p["area"]) else p["area"]),
               "floors": p["floors"], "floors_txt": p["floors_txt"], "bedrooms": p["bedrooms"],
-              "group": p["group"]} for p in catalog_items]
+              "group": p["group"], "est": bool(p.get("price_est"))} for p in catalog_items]
     json.dump(light, open(os.path.join(SITE, "projects.json"), "w", encoding="utf-8"), ensure_ascii=False)
 
     groups = sorted({p["group"] for p in catalog_items})
