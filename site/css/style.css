@@ -696,6 +696,17 @@ to{opacity:1;transform:none}
 .featured-grid.is-2 .project .meta span{font-size:.66rem;padding:3px 7px;white-space:nowrap}
 .featured-grid.is-2 .project .meta span:nth-child(3){display:none}
 .featured-grid.is-2 .project .btn--block{font-size:.76rem;padding:7px}
+/* Каталог: 2 колонки на мобильном (по умолчанию). Те же компактные карточки,
+   но без скрытия — в каталоге показываем все. Снятие is-2 → .cols-3 = 1 столбец. */
+#catGrid.is-2{grid-template-columns:1fr 1fr;gap:10px}
+#catGrid.is-2 .project .thumb{aspect-ratio:5/4}
+#catGrid.is-2 .project .body{padding:10px 11px 12px;gap:5px}
+#catGrid.is-2 .project .price{font-size:.9rem;white-space:nowrap}
+#catGrid.is-2 .project .body h3{font-size:.82rem;line-height:1.25;min-height:2.5em}
+#catGrid.is-2 .project .meta{gap:5px;flex-wrap:nowrap;overflow:hidden}
+#catGrid.is-2 .project .meta span{font-size:.66rem;padding:3px 7px;white-space:nowrap}
+#catGrid.is-2 .project .meta span:nth-child(3){display:none}
+#catGrid.is-2 .project .btn--block{font-size:.76rem;padding:7px}
 }
 .project{display:flex;flex-direction:column}
 .project .body{flex:1}

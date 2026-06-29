@@ -847,7 +847,13 @@ __HEADER__
         </div>
       </aside>
       <div class="catalog-results">
-        <div class="grid cols-3" id="catGrid">__CARDS__</div>
+        <div class="colswitch-row">
+          <div class="colswitch" data-target="catGrid" role="group" aria-label="Вид списка">
+            <button type="button" class="colswitch__btn" data-cols="1" aria-label="В один столбец"><svg viewBox="0 0 20 20"><rect x="4" y="3" width="12" height="14" rx="2"/></svg></button>
+            <button type="button" class="colswitch__btn is-active" data-cols="2" aria-label="В два столбца"><svg viewBox="0 0 20 20"><rect x="3" y="3" width="6" height="14" rx="1.5"/><rect x="11" y="3" width="6" height="14" rx="1.5"/></svg></button>
+          </div>
+        </div>
+        <div class="grid cols-3 is-2" id="catGrid">__CARDS__</div>
         <div id="catSentinel" aria-hidden="true" style="height:1px"></div>
         <div class="center" style="margin-top:30px"><button id="catMore" class="btn btn--primary btn--lg" hidden>Показать ещё</button></div>
         <p id="catEmpty" class="lead center" hidden style="margin-top:24px">По заданным фильтрам ничего не найдено. Попробуйте смягчить условия.</p>
@@ -1014,6 +1020,28 @@ document.addEventListener('keydown', function(e){ if(e.key==='Escape') closeF();
       FIELDS.forEach(function(id){$(id).value='';}); $('fSort').value='area-asc'; priceR.reset(); areaR.reset();
       apply();
       var a=document.querySelector('.catalog-sticky'); if(a) a.scrollIntoView({block:'start'});
+    });
+  });
+})();
+// Переключатель «1 / 2 колонки» на мобильном. Ключ projCols — общий с главной,
+// поэтому выбор клиента единый для всего сайта (по умолчанию 2 колонки).
+(function(){
+  var sw=document.querySelector('.colswitch'), grid=$('catGrid');
+  if(!sw || !grid) return;
+  function apply(cols){
+    var two = cols!=='1';
+    grid.classList.toggle('is-2', two);
+    sw.querySelectorAll('.colswitch__btn').forEach(function(b){
+      b.classList.toggle('is-active', b.getAttribute('data-cols')===cols);
+    });
+  }
+  var saved; try{ saved=localStorage.getItem('projCols'); }catch(e){}
+  apply(saved==='1' ? '1' : '2');
+  sw.querySelectorAll('.colswitch__btn').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      var c=btn.getAttribute('data-cols');
+      try{ localStorage.setItem('projCols', c); }catch(e){}
+      apply(c);
     });
   });
 })();
