@@ -1023,6 +1023,11 @@ __HEADER__
         <button class="catmode__btn" data-mode="built" role="tab" aria-selected="false">Построенные дома</button>
       </div>
       <p class="catmode__hint" id="catModeHint">Готовые проекты с планировками — выберите свой и рассчитайте стоимость.</p>
+      <div class="cat-search">
+        <svg class="cat-search__ic" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.5" y2="16.5"/></svg>
+        <input type="search" id="catSearch" placeholder="Поиск по названию — например, С-12, А-49" autocomplete="off" aria-label="Поиск проекта по названию">
+        <button type="button" class="cat-search__clear" id="catSearchClear" aria-label="Очистить" hidden>&times;</button>
+      </div>
       <div class="catalog-toolbar">
         <button id="filtersToggle" class="btn btn--primary filters-toggle"><svg width="18"><use href="#i-filter"/></svg> Фильтры и сортировка<span id="fCountBadge" class="fbadge" hidden></span><span class="ftgl-chev" aria-hidden="true">▾</span></button>
         <span id="catCount" class="cat-count">—</span>
@@ -1155,6 +1160,15 @@ function priceActive(){ return (+$('fPriceMin').value>0) || (+$('fPriceMax').val
 function areaActive(){ return (+$('fAreaMin').value>0) || (+$('fAreaMax').value < +$('fAreaMax').max); }
 function activeCount(){ var c=0; FIELDS.forEach(function(id){ if(($(id).value||'').trim()) c++; }); if(priceActive()) c++; if(areaActive()) c++; return c; }
 FIELDS.concat(['fSort']).forEach(function(id){ $(id).addEventListener('input', apply); });
+// Видимый поиск по названию вверху каталога — ведёт скрытый #fSearch в панели.
+(function(){
+  var top=$('catSearch'), inner=$('fSearch'), clr=$('catSearchClear');
+  if(!top) return;
+  function syncClear(){ if(clr) clr.hidden = !top.value; }
+  top.addEventListener('input', function(){ inner.value=top.value; syncClear(); apply(); });
+  inner.addEventListener('input', function(){ top.value=inner.value; syncClear(); });
+  if(clr) clr.addEventListener('click', function(){ top.value=''; inner.value=''; syncClear(); apply(); top.focus(); });
+})();
 // Выбор сортировки запоминаем на устройстве — на следующий визит восстановится.
 $('fSort').addEventListener('change', function(){ try{ localStorage.setItem('projSort', $('fSort').value); }catch(e){} });
 // Двойные ползунки (цена + площадь) — общий инициализатор
@@ -1199,7 +1213,8 @@ $('catMore').addEventListener('click', render);
   new IntersectionObserver(function(es){ if(es[0].isIntersecting) autoFill(); }, {rootMargin:'700px 0px'}).observe(s);
 })();
 $('catReset').addEventListener('click', function(){
-  FIELDS.forEach(function(id){$(id).value='';}); priceR.reset(); areaR.reset(); apply();
+  FIELDS.forEach(function(id){$(id).value='';}); var cs=$('catSearch'); if(cs)cs.value='';
+  var cc=$('catSearchClear'); if(cc)cc.hidden=true; priceR.reset(); areaR.reset(); apply();
 });
 // Фильтры: панель выезжает сбоку по ТАПУ; edge-tab появляется при прокрутке вниз
 var fab=$('filterFab'), toolbarVisible=true, fabTimer=null;
