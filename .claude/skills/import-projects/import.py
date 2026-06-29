@@ -139,8 +139,40 @@ def _norm_name(s):
 
 def _variant_letter_name(name, letter):
     """Добавляет букву к коду проекта (первое «Буква-Цифры» в имени): Б-160 → Б-160Б."""
-    new = re.sub(r"([А-ЯЁA-Z]-\d{2,4})", lambda m: m.group(1) + letter, name, count=1)
+    new = re.sub(r"([А-ЯЁA-Z]-\d{1,4}[А-ЯЁ]?)", lambda m: m.group(1) + letter, name, count=1)
     return new if new != name else (name.rstrip() + " " + letter)
+
+
+def standardize_name(p):
+    """Единый формат имени: «{Тип} «{КОД}»» (площадь убираем — она и так в карточке
+    и в title). Для построенных объектов добавляем год. Если код не распознан —
+    оставляем имя как есть (битые/именные позиции не ломаем)."""
+    name = p["name"]
+    group = p["group"]
+    if group == "СИП-панели":
+        return name
+    low = name.lower()
+    if group == "Бани" or "бан" in low:
+        prefix = "Проект бани"
+    elif "беседк" in low:
+        prefix = "Проект беседки"
+    elif "гараж" in low:
+        prefix = "Проект гаража"
+    elif group == "Домокомплекты" or "комплект" in low:
+        prefix = "Домокомплект"
+    elif group == "Построенные объекты":
+        prefix = "Дом"
+    else:
+        prefix = "Проект дома"
+    m = re.search(r"([А-ЯЁA-Zа-яёa-z]\s*-\s*\d{1,4}[А-ЯЁа-яё]?)", name)
+    if not m:
+        return name
+    code = re.sub(r"\s*-\s*", "-", m.group(1)).strip().upper()
+    if group == "Построенные объекты":
+        ym = re.search(r"(20\d\d)\s*г", name)
+        if ym:
+            return "%s «%s», %s г." % (prefix, code, ym.group(1))
+    return "%s «%s»" % (prefix, code)
 
 
 def detect_group(cats):
@@ -223,6 +255,9 @@ def parse_csv(path):
             "dims": dims, "height": height,
             "images": imgs, "img": imgs[0] if imgs else "",
         })
+    # Приводим все имена к единому формату «{Тип} «{КОД}»» (без площади).
+    for p in items:
+        p["name"] = standardize_name(p)
     # Авто-оценка цены для ДОМОВ без цены (бани/беседки/гаражи/домокомплекты —
     # другое ценообразование, их не трогаем; остаются «Цена по запросу»).
     for p in items:
