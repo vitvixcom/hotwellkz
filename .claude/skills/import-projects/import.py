@@ -602,8 +602,38 @@ __BOTTOM__
 
 
 # ---------- каталог ----------
-def catalog_page(groups, price_max, area_max, price_step=100000, area_step=10):
+def _catalog_card_html(p):
+    """Статичная карточка каталога — разметка совпадает с JS-функцией card(),
+    чтобы при «гидрации» вид не менялся. Нужна для SSR: ссылки на все проекты
+    присутствуют в HTML и видны поисковикам (особенно Яндексу, слабому в JS)."""
+    img = p["img"]
+    img2 = p["images"][1] if len(p["images"]) > 1 and p["images"][1] else ""
+    thumbs = ""
+    if img:
+        thumbs += '<img class="thumb-i" src="%s" alt="%s" loading="lazy">' % (esc(img), esc(p["name"]))
+    if img2:
+        thumbs += '<img class="thumb-i thumb-i--alt" src="%s" alt="" loading="lazy" aria-hidden="true">' % esc(img2)
+    meta = []
+    if p["area"]:
+        meta.append('<span>%s м²</span>' % (int(p["area"]) if p["area"] == int(p["area"]) else p["area"]))
+    if p["floors_txt"]:
+        meta.append('<span>%s</span>' % esc(p["floors_txt"]))
+    if p["bedrooms"]:
+        meta.append('<span>%d сп.</span>' % p["bedrooms"])
+    price = ("от %s" % fmt_price(p["price"])) if p["price"] else "Цена по запросу"
+    return ('<article class="project"><a class="thumb" href="proekty/%s.html">%s</a>'
+            '<div class="body"><div class="price">%s</div>'
+            '<h3><a href="proekty/%s.html">%s</a></h3>'
+            '<div class="meta">%s</div>'
+            '<a href="proekty/%s.html" class="btn btn--outline btn--block">Подробнее</a></div></article>'
+            % (p["slug"], thumbs, price, p["slug"], esc(p["name"]), "".join(meta), p["slug"]))
+
+
+def catalog_page(groups, price_max, area_max, items=None, price_step=100000, area_step=10):
     opts = "".join('<option value="%s">%s</option>' % (esc(g), esc(g)) for g in groups)
+    # SSR: карточки всех проектов в порядке сортировки по умолчанию (площадь ↑)
+    ssr_items = sorted(items or [], key=lambda p: (p["area"] or 0, p["name"]))
+    cards_html = "".join(_catalog_card_html(p) for p in ssr_items)
     tpl = """<!DOCTYPE html>
 <html lang="ru">
 <head>
@@ -686,7 +716,7 @@ __HEADER__
         </div>
       </aside>
       <div class="catalog-results">
-        <div class="grid cols-3" id="catGrid"></div>
+        <div class="grid cols-3" id="catGrid">__CARDS__</div>
         <div id="catSentinel" aria-hidden="true" style="height:1px"></div>
         <div class="center" style="margin-top:30px"><button id="catMore" class="btn btn--primary btn--lg" hidden>Показать ещё</button></div>
         <p id="catEmpty" class="lead center" hidden style="margin-top:24px">По заданным фильтрам ничего не найдено. Попробуйте смягчить условия.</p>
@@ -839,14 +869,22 @@ if(fab) fab.addEventListener('click', openF);
 document.addEventListener('keydown', function(e){ if(e.key==='Escape') closeF(); });
 fetch('projects.json').then(function(r){return r.json()}).then(function(d){
   all=d;
-  try{ var pg=new URLSearchParams(location.search).get('group'); if(pg){ $('fGroup').value=pg; } }catch(e){}
-  apply();
+  var pg=null; try{ pg=new URLSearchParams(location.search).get('group'); }catch(e){}
+  if(pg){ $('fGroup').value=pg; apply(); return; }
+  // Карточки уже отрисованы на сервере (SSR) — не перерисовываем, только синхронизируем
+  // состояние счётчиков. Перестроение произойдёт при первом изменении фильтра/сортировки.
+  view=all.slice().sort(function(a,b){return (a.area||0)-(b.area||0);});
+  shown=view.length;
+  $('catCount').textContent='Найдено: '+view.length;
+  $('applyCount').textContent='('+view.length+')';
+  $('catMore').hidden=true;
 });
 </script>
 </body>
 </html>"""
     for k, v in {"__BASE__": BASE_URL, "__SPRITE__": SPRITE, "__HEADER__": header(""),
                  "__FOOTER__": footer(""), "__OPTS__": opts, "__BOTTOM__": mobile_bar(""),
+                 "__CARDS__": cards_html,
                  "__PRICEMAX__": str(price_max), "__PRICESTEP__": str(price_step),
                  "__AREAMAX__": str(area_max), "__AREASTEP__": str(area_step)}.items():
         tpl = tpl.replace(k, v)
@@ -987,7 +1025,7 @@ def main():
     price_max = int((maxp // 1_000_000 + 1) * 1_000_000) if maxp else 50_000_000
     maxa = max((p["area"] for p in items if p["area"]), default=0)
     area_max = int((maxa // 50 + 1) * 50) if maxa else 500
-    open(os.path.join(SITE, "proekty.html"), "w", encoding="utf-8").write(catalog_page(groups, price_max, area_max))
+    open(os.path.join(SITE, "proekty.html"), "w", encoding="utf-8").write(catalog_page(groups, price_max, area_max, items=items))
     update_index(items)
     write_sitemap(items)
 
