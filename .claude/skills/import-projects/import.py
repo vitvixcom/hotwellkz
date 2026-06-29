@@ -673,7 +673,10 @@ def project_page(p, prv=None, nxt=None, sim=None):
     if p["bedrooms"]: specs.append(("Спальни", str(p["bedrooms"])))
     if p["dims"]: specs.append(("Габариты", p["dims"]))
     if p["height"]: specs.append(("Высота этажей", p["height"]))
-    specs_html = "".join('<div class="spec"><span>%s</span><b>%s</b></div>' % (esc(k), esc(v)) for k, v in specs)
+    specs_html = "".join(
+        '<div class="spec"><span>%s</span><b%s>%s</b></div>'
+        % (esc(k), ' id="pgFloorsVal"' if k == "Этажность" else '', esc(v))
+        for k, v in specs)
 
     thumbs = "".join(
         '<button class="pg-thumb" data-i="%d"><img src="%s" alt="%s — фото %d" loading="lazy"></button>'
@@ -708,18 +711,32 @@ def project_page(p, prv=None, nxt=None, sim=None):
                       {"@type": "ListItem", "position": 3, "name": p["name"], "item": url}]}
     ld_list = [ld, breadcrumb]
 
-    if p["price"]:
-        if p.get("price_est"):
-            price_block = (
-                '<div class="pg-price-wrap">'
-                '<div class="pg-price">от %s <span class="pg-price-approx" title="Предварительный расчёт">≈</span></div>'
-                '<p class="pg-price-note">Цена рассчитана автоматически по стандартным параметрам — '
-                'уточните точную стоимость у менеджера.</p>'
-                '</div>' % fmt_price(p["price"]))
-        else:
-            price_block = '<div class="pg-price">от %s</div>' % fmt_price(p["price"])
-    else:
+    _note = ('<p class="pg-price-note">Цена рассчитана автоматически по стандартным параметрам — '
+             'уточните точную стоимость у менеджера.</p>')
+    _mansard = (p.get("price_est") and p.get("area") and p.get("floors")
+                and 1.0 < p["floors"] < 2.0 and p["group"] in ("Проекты", "Построенные объекты"))
+    if not p["price"]:
         price_block = '<div class="pg-price pg-price--ask">Цена по запросу</div>'
+    elif _mansard:
+        # 1.5 этажа = мансарда (дороже). Даём переключатель на «2 полных этажа» (дешевле).
+        full_price = estimate_house_price(p["area"], 2, mansard=False)
+        save = max(0, p["price"] - full_price)
+        price_block = (
+            '<div class="pg-price-wrap" data-pmans="%d" data-pfull="%d" data-save="%d" data-floors="%s">'
+            '<div class="pg-ftoggle" role="group" aria-label="Этажность">'
+            '<button type="button" class="pg-ft is-on" data-v="mansard">1,5 этажа · мансарда</button>'
+            '<button type="button" class="pg-ft" data-v="full">2 полных этажа</button>'
+            '</div>'
+            '<div class="pg-price">от <span id="pgPriceVal">%s</span> <span class="pg-price-approx" title="Предварительный расчёт">≈</span></div>'
+            '<p class="pg-price-hint" id="pgPriceHint"></p>%s</div>'
+            % (p["price"], full_price, save, esc(p["floors_txt"] or "1,5 этажа"), fmt_price(p["price"]), _note))
+    elif p.get("price_est"):
+        price_block = (
+            '<div class="pg-price-wrap">'
+            '<div class="pg-price">от %s <span class="pg-price-approx" title="Предварительный расчёт">≈</span></div>'
+            '%s</div>' % (fmt_price(p["price"]), _note))
+    else:
+        price_block = '<div class="pg-price">от %s</div>' % fmt_price(p["price"])
     # Уникальное SEO-описание из достоверных характеристик проекта + FAQ с FAQPage-разметкой
     desc_block = ('<div class="pg-desc"><h2 style="text-transform:none;font-size:1.4rem">Описание</h2>%s</div>'
                   % build_description(p))
@@ -831,6 +848,27 @@ __BOTTOM__
     var x0=null;
     lb.addEventListener('touchstart', function(e){ x0=e.touches[0].clientX; }, {passive:true});
     lb.addEventListener('touchend', function(e){ if(x0===null) return; var dx=e.changedTouches[0].clientX-x0; if(Math.abs(dx)>45) show(dx<0?idx+1:idx-1); x0=null; });
+  })();
+  // Переключатель «1,5 этажа (мансарда) / 2 полных этажа» — пересчёт цены на лету
+  (function(){
+    var w=document.querySelector('.pg-price-wrap[data-pmans]'); if(!w) return;
+    var pm=+w.getAttribute('data-pmans'), pf=+w.getAttribute('data-pfull'), sv=+w.getAttribute('data-save'),
+        fl=w.getAttribute('data-floors')||'1,5 этажа';
+    var val=document.getElementById('pgPriceVal'), hint=document.getElementById('pgPriceHint'),
+        fb=document.getElementById('pgFloorsVal');
+    function fmt(n){ return (''+n).replace(/\\B(?=(\\d{3})+(?!\\d))/g,' ')+' \\u20b8'; }
+    function set(mode){
+      w.querySelectorAll('.pg-ft').forEach(function(b){ b.classList.toggle('is-on', b.getAttribute('data-v')===mode); });
+      if(mode==='full'){
+        val.textContent=fmt(pf); if(fb)fb.textContent='2 этажа';
+        hint.innerHTML='\\u2713 Цена с полноценным 2-м этажом. Вариант с мансардой (1,5 эт.) дороже на <b>'+fmt(sv)+'</b>.';
+      } else {
+        val.textContent=fmt(pm); if(fb)fb.textContent=fl;
+        hint.innerHTML='\\uD83D\\uDCA1 Можно построить с полноценным 2-м этажом — дешевле на <b>'+fmt(sv)+'</b>.';
+      }
+    }
+    w.querySelectorAll('.pg-ft').forEach(function(b){ b.addEventListener('click', function(){ set(b.getAttribute('data-v')); }); });
+    set('mansard');
   })();
 </script>
 </body>
