@@ -94,9 +94,13 @@ def detect_group(cats):
     return "Разное"
 
 
+REMOVED_OLD_SLUGS = []  # старые слаги убранных из каталога позиций (для 301 → главная)
+
+
 def parse_csv(path):
     rows = list(csv.DictReader(open(path, encoding="utf-8-sig", newline="")))
-    items, seen = [], set()
+    REMOVED_OLD_SLUGS.clear()
+    items, seen_old, seen_new = [], set(), set()
     for r in rows:
         name = clean_name(r.get("Имя"))
         if not name:
@@ -116,12 +120,21 @@ def parse_csv(path):
             if nm and vl:
                 attrs[nm] = vl
         imgs = [u.strip() for u in (r.get("Изображения") or "").split(",") if u.strip()]
-        base = slugify(r.get("Артикул") or name)
-        slug = base; n = 2
-        while slug in seen:
-            slug = "%s-%d" % (base, n); n += 1
-        seen.add(slug)
-        name = tidy_name(name)  # косметика имени уже после слага — URL не меняются
+        group = detect_group(cats)
+        # СТАРЫЙ слаг (как в текущем деплое — из «Артикул»): нужен для 301-редиректа.
+        # Считаем для всех строк (включая СИП-панели), чтобы совпасть с опубликованным.
+        old_base = slugify(r.get("Артикул") or name)
+        old_slug = old_base; n = 2
+        while old_slug in seen_old:
+            old_slug = "%s-%d" % (old_base, n); n += 1
+        seen_old.add(old_slug)
+        name = tidy_name(name)
+        # НОВЫЙ ЧПУ-слаг — из читаемого имени проекта.
+        new_base = slugify(name)
+        slug = new_base; n = 2
+        while slug in seen_new:
+            slug = "%s-%d" % (new_base, n); n += 1
+        seen_new.add(slug)
 
         def find(*keys, exclude=()):
             for k in attrs:
@@ -136,11 +149,12 @@ def parse_csv(path):
         dims = find("габарит", "размер")
         height = find("высот", "потолк")
         items.append({
-            "name": name, "slug": slug, "sku": (r.get("Артикул") or "").strip(),
+            "name": name, "slug": slug, "old_slug": old_slug,
+            "sku": (r.get("Артикул") or "").strip(),
             "price": int(first_num(r.get("Базовая цена")) or 0),
             "short": (r.get("Краткое описание") or "").strip(),
             "desc": (r.get("Описание") or "").strip(),
-            "group": detect_group(cats), "cats": cats, "attrs": attrs,
+            "group": group, "cats": cats, "attrs": attrs,
             "area": area, "floors_txt": floors, "floors": first_num(floors),
             "bedrooms": int(bedrooms) if bedrooms else None,
             "dims": dims, "height": height,
@@ -603,7 +617,7 @@ def project_page(p, prv=None, nxt=None, sim=None):
 <meta name="description" content="__DESC__">
 <link rel="canonical" href="__URL__">
 <link rel="icon" type="image/svg+xml" href="../favicon.svg">
-<meta name="theme-color" content="#FFC400">
+<meta name="theme-color" content="#FFC400">__ROBOTS__
 <link rel="preconnect" href="https://hotwell.kz" crossorigin>
 <link rel="dns-prefetch" href="https://hotwell.kz">
 <meta property="og:type" content="product">
@@ -692,6 +706,8 @@ __BOTTOM__
         "__GROUP__": esc(p["group"]), "__PRICE__": price_block, "__SPECS__": specs_html,
         "__WA__": esc(wa_link(p["name"])), "__DESCBLOCK__": desc_block,
         "__FAQ__": faq_block, "__GEO__": geo_links_block("../"), "__CSSVER__": css_ver(),
+        "__ROBOTS__": ('\n<meta name="robots" content="noindex, follow">'
+                       if p["group"] == "СИП-панели" else ""),
         "__INCLUDES__": includes_table(), "__BOTTOM__": mobile_bar("../"),
         "__GALJSON__": json.dumps(p["images"][:20], ensure_ascii=False),
         "__NAMEJSON__": json.dumps(p["name"], ensure_ascii=False),
@@ -1071,6 +1087,32 @@ def write_sitemap(items):
         "User-agent: *\nAllow: /\nSitemap: %s/sitemap.xml\n" % BASE_URL)
 
 
+def write_redirects(items):
+    """Netlify _redirects: 301 со старых URL (генерировались из «Артикул») на новые
+    ЧПУ-адреса, плюс убранные из каталога позиции (СИП-панели) → на главную.
+    Старый URL не редиректим, если он совпадает с каким-то живым новым адресом
+    (чтобы не перекрыть существующую страницу)."""
+    live_new = {p["slug"] for p in items}
+    lines, seen = [], set()
+
+    def add(line):
+        if line not in seen:
+            seen.add(line)
+            lines.append(line)
+
+    for p in items:
+        o, n = p.get("old_slug"), p["slug"]
+        if o and o != n and o not in live_new:
+            add("/proekty/%s.html  /proekty/%s.html  301" % (o, n))
+    for o in REMOVED_OLD_SLUGS:
+        if o not in live_new:
+            add("/proekty/%s.html  /  301" % o)
+
+    path = os.path.join(SITE, "_redirects")
+    open(path, "w", encoding="utf-8").write("\n".join(lines) + ("\n" if lines else ""))
+    return len(lines)
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--csv", default=os.path.join(HERE, "source.csv"))
@@ -1128,27 +1170,36 @@ def main():
         open(os.path.join(PROEKTY_DIR, p["slug"] + ".html"), "w", encoding="utf-8").write(
             project_page(p, prv, nxt, similar(p)))
 
+    # Каталог проектов НЕ включает СИП-панели (это стройматериал, а не проект дома):
+    # их страницы остаются (noindex) для блока «СИП-панели» на главной, но в каталоге,
+    # projects.json и фильтрах не участвуют, чтобы не мешаться в поиске с проектами.
+    catalog_items = [p for p in items if p["group"] != "СИП-панели"]
+
     # projects.json (лёгкий, для каталога)
     light = [{"slug": p["slug"], "name": p["name"], "price": p["price"], "img": p["img"],
               "img2": (p["images"][1] if len(p["images"]) > 1 and p["images"][1] else ""),
               "area": (int(p["area"]) if p["area"] and p["area"] == int(p["area"]) else p["area"]),
               "floors": p["floors"], "floors_txt": p["floors_txt"], "bedrooms": p["bedrooms"],
-              "group": p["group"]} for p in items]
+              "group": p["group"]} for p in catalog_items]
     json.dump(light, open(os.path.join(SITE, "projects.json"), "w", encoding="utf-8"), ensure_ascii=False)
 
-    groups = sorted({p["group"] for p in items})
-    maxp = max((p["price"] for p in items if p["price"]), default=0)
+    groups = sorted({p["group"] for p in catalog_items})
+    maxp = max((p["price"] for p in catalog_items if p["price"]), default=0)
     price_max = int((maxp // 1_000_000 + 1) * 1_000_000) if maxp else 50_000_000
-    maxa = max((p["area"] for p in items if p["area"]), default=0)
+    maxa = max((p["area"] for p in catalog_items if p["area"]), default=0)
     area_max = int((maxa // 50 + 1) * 50) if maxa else 500
-    open(os.path.join(SITE, "proekty.html"), "w", encoding="utf-8").write(catalog_page(groups, price_max, area_max, items=items))
+    open(os.path.join(SITE, "proekty.html"), "w", encoding="utf-8").write(catalog_page(groups, price_max, area_max, items=catalog_items))
     update_index(items)
     write_sitemap(items)
+    nred = write_redirects(items)
 
     print("\n✓ Готово:")
     print("  • %d страниц проектов в site/proekty/" % len(items))
     print("  • site/proekty.html (каталог с фильтрами)")
     print("  • site/projects.json, sitemap.xml, robots.txt")
+    npanel = sum(1 for p in items if p["group"] == "СИП-панели")
+    print("  • site/_redirects — 301-редиректов: %d" % nred)
+    print("  • СИП-панелей вне каталога (noindex, для блока на главной): %d" % npanel)
     print("  • избранные проекты встроены в index.html")
 
 
