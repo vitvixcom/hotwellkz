@@ -370,6 +370,11 @@ html,body{max-width:100%;overflow-x:clip}
 .geo-links__row{display:flex;flex-wrap:wrap;gap:10px}
 .geo-link{display:inline-block;padding:9px 16px;background:var(--c-badge,#eef6f0);color:var(--c-green,#1a7d3c);border:1px solid var(--c-line,#e1ece4);border-radius:999px;font-size:.92rem;font-weight:600;line-height:1.2;white-space:nowrap;transition:.15s}
 .geo-link:hover{background:var(--c-green,#1a7d3c);border-color:var(--c-green,#1a7d3c);color:#fff}
+.catmode{display:inline-flex;gap:4px;padding:4px;background:var(--c-bg-2,#f1f3f0);border-radius:999px;margin:0 0 10px}
+.catmode__btn{appearance:none;border:0;background:none;cursor:pointer;padding:9px 18px;border-radius:999px;font-size:.95rem;font-weight:700;color:#5b6b60;transition:.15s;white-space:nowrap}
+.catmode__btn.is-on{background:var(--c-green,#1a7d3c);color:#fff;box-shadow:var(--sh-sm)}
+.catmode__hint{margin:0 0 14px;color:#667;font-size:.92rem;line-height:1.5}
+@media(max-width:560px){.catmode{display:flex;width:100%}.catmode__btn{flex:1;padding:10px 8px;font-size:.9rem}}
 @media(max-width:860px){.pg{grid-template-columns:1fr;gap:22px}
 }
 .includes-spec{margin-top:46px;max-width:900px}

@@ -747,12 +747,16 @@ def _catalog_card_html(p):
 
 
 def catalog_page(groups, price_max, area_max, items=None, price_step=100000, area_step=10):
-    opts = "".join('<option value="%s">%s</option>' % (esc(g), esc(g)) for g in groups)
-    # SSR: первые N карточек в порядке сортировки по умолчанию (площадь ↑) — для
-    # поисковиков и быстрого рендера; остальные JS догружает из projects.json при
-    # прокрутке. Все проекты в любом случае есть в sitemap.xml и перелинкованы.
+    # «Построенные объекты» — это портфолио, а не проекты для выбора планировки.
+    # В дропдаунах раздела их не показываем (переключаются отдельной вкладкой).
+    opts = "".join('<option value="%s">%s</option>' % (esc(g), esc(g))
+                   for g in groups if g != "Построенные объекты")
+    # SSR: первые N карточек ПРОЕКТОВ (без построенных — режим по умолчанию) в порядке
+    # сортировки по умолчанию (площадь ↑). Остальные и построенные JS догружает из
+    # projects.json. Все страницы в любом случае есть в sitemap.xml и перелинкованы.
     SSR_CAP = 300
-    ssr_items = sorted(items or [], key=lambda p: (p["area"] or 0, p["name"]))[:SSR_CAP]
+    design_items = [p for p in (items or []) if p["group"] != "Построенные объекты"]
+    ssr_items = sorted(design_items, key=lambda p: (p["area"] or 0, p["name"]))[:SSR_CAP]
     cards_html = "".join(_catalog_card_html(p) for p in ssr_items)
     tpl = """<!DOCTYPE html>
 <html lang="ru">
@@ -789,6 +793,11 @@ __HEADER__
       <p class="lead">Выберите проект по площади, этажности и бюджету. Точную смету рассчитаем онлайн за несколько минут после обращения.</p>
     </div>
     <div class="catalog-sticky">
+      <div class="catmode" role="tablist" aria-label="Что показывать">
+        <button class="catmode__btn is-on" data-mode="design" role="tab" aria-selected="true">Проекты домов</button>
+        <button class="catmode__btn" data-mode="built" role="tab" aria-selected="false">Построенные дома</button>
+      </div>
+      <p class="catmode__hint" id="catModeHint">Готовые проекты с планировками — выберите свой и рассчитайте стоимость.</p>
       <div class="catalog-toolbar">
         <button id="filtersToggle" class="btn btn--primary filters-toggle"><svg width="18"><use href="#i-filter"/></svg> Фильтры и сортировка<span id="fCountBadge" class="fbadge" hidden></span><span class="ftgl-chev" aria-hidden="true">▾</span></button>
         <span id="catCount" class="cat-count">—</span>
@@ -851,7 +860,7 @@ __HEADER__
 __FOOTER__
 __BOTTOM__
 <script>
-const PER=24; let all=[], view=[], shown=0;
+const PER=24; let all=[], view=[], shown=0, mode='design';
 const $=function(id){return document.getElementById(id)};
 function fmtPrice(n){ return n? (''+n).replace(/\\B(?=(\\d{3})+(?!\\d))/g,' ')+' \\u20b8' : 'Цена по запросу'; }
 function card(p){
@@ -871,6 +880,8 @@ function apply(){
   var amin=+$('fAreaMin').value||0, amax=+$('fAreaMax').value||0;
   var pmin=+$('fPriceMin').value||0, pmax=+$('fPriceMax').value||0, q=$('fSearch').value.trim().toLowerCase();
   view=all.filter(function(p){
+    if(mode==='built'){ if(p.group!=='Построенные объекты') return false; }
+    else if(p.group==='Построенные объекты') return false;
     if(g && p.group!==g) return false;
     if(fl && String(p.floors)!==fl) return false;
     if(bd){ if(bd==='4'){ if(!(p.bedrooms>=4)) return false; } else if(String(p.bedrooms)!==bd) return false; }
@@ -989,14 +1000,32 @@ if(fab) fab.addEventListener('click', openF);
   new IntersectionObserver(function(es){ toolbarVisible=es[0].isIntersecting; updateFab(); }, {threshold:0}).observe(anchor);
 })();
 document.addEventListener('keydown', function(e){ if(e.key==='Escape') closeF(); });
+// Переключатель «Проекты домов» / «Построенные дома (портфолио)»
+(function(){
+  var hints={design:'Готовые проекты с планировками — выберите свой и рассчитайте стоимость.',
+             built:'Наши построенные дома — портфолио реализованных объектов.'};
+  document.querySelectorAll('.catmode__btn').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      if(btn.classList.contains('is-on')) return;
+      document.querySelectorAll('.catmode__btn').forEach(function(b){ b.classList.remove('is-on'); b.setAttribute('aria-selected','false'); });
+      btn.classList.add('is-on'); btn.setAttribute('aria-selected','true');
+      mode=btn.getAttribute('data-mode');
+      var h=$('catModeHint'); if(h) h.textContent=hints[mode]||'';
+      FIELDS.forEach(function(id){$(id).value='';}); $('fSort').value='area-asc'; priceR.reset(); areaR.reset();
+      apply();
+      var a=document.querySelector('.catalog-sticky'); if(a) a.scrollIntoView({block:'start'});
+    });
+  });
+})();
 fetch('projects.json').then(function(r){return r.json()}).then(function(d){
   all=d;
   var pg=null; try{ pg=new URLSearchParams(location.search).get('group'); }catch(e){}
   if(pg){ $('fGroup').value=pg; apply(); return; }
-  // Часть карточек уже отрисована на сервере (SSR) — не перерисовываем их, только
-  // синхронизируем состояние; остальные догружаются при прокрутке. Полное
-  // перестроение произойдёт при первом изменении фильтра/сортировки.
-  view=all.slice().sort(function(a,b){return (a.area||0)-(b.area||0) || a.name.localeCompare(b.name);});
+  // По умолчанию режим «Проекты домов»: SSR-карточки уже отрисованы (без построенных),
+  // не перерисовываем — только синхронизируем счётчики. Остальные догружаются при
+  // прокрутке, построенные — по вкладке. Полное перестроение — при первом фильтре.
+  view=all.filter(function(p){return p.group!=='Построенные объекты';})
+          .sort(function(a,b){return (a.area||0)-(b.area||0) || a.name.localeCompare(b.name);});
   shown=$('catGrid').children.length;
   $('catCount').textContent='Найдено: '+view.length;
   $('applyCount').textContent='('+view.length+')';
