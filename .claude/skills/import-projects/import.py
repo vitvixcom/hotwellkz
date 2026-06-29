@@ -871,6 +871,37 @@ __BOTTOM__
     set('mansard');
   })();
 </script>
+<button class="calc-fab" id="calcFab" aria-label="Калькулятор стоимости"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><rect x="5" y="2.5" width="14" height="19" rx="2"/><line x1="8.5" y1="6" x2="15.5" y2="6"/><line x1="8.5" y1="11" x2="8.5" y2="11"/><line x1="12" y1="11" x2="12" y2="11"/><line x1="15.5" y1="11" x2="15.5" y2="11"/><line x1="8.5" y1="15" x2="8.5" y2="15"/><line x1="12" y1="15" x2="12" y2="15"/><line x1="15.5" y1="14.5" x2="15.5" y2="18"/></svg><span class="calc-fab__t">Калькулятор</span></button>
+<div class="calc-drawer-backdrop" id="calcBackdrop"></div>
+<aside class="calc-drawer" id="calcDrawer" data-area="__AREA__" data-floors="__FLOORSNUM__" aria-hidden="true" aria-label="Калькулятор стоимости">
+  <div class="calc-drawer__head"><b>Калькулятор стоимости</b><button class="calc-drawer__close" id="calcClose" aria-label="Закрыть">&times;</button></div>
+  <div class="calc-drawer__body">
+    <p class="calc-drawer__hint">Параметры подставлены из проекта — меняйте что угодно, цена пересчитается сразу.</p>
+    <label class="calc-protoggle"><input type="checkbox" id="calcPro"> <span>Профессиональный расчёт (все параметры)</span></label>
+    <form id="calcForm" class="calc-form" onsubmit="return false"></form>
+    <div id="calcResult" class="calc-drawer__result"></div>
+  </div>
+</aside>
+<script src="../js/calculator.js"></script>
+<script>
+  (function(){
+    var fab=document.getElementById('calcFab'), drawer=document.getElementById('calcDrawer'),
+        bd=document.getElementById('calcBackdrop'), closeBtn=document.getElementById('calcClose');
+    if(!fab||!drawer) return;
+    function openD(){ drawer.classList.add('open'); bd.classList.add('open'); document.body.classList.add('calc-open'); drawer.setAttribute('aria-hidden','false'); }
+    function shutD(){ drawer.classList.remove('open'); bd.classList.remove('open'); document.body.classList.remove('calc-open'); drawer.setAttribute('aria-hidden','true'); }
+    fab.addEventListener('click', openD);
+    closeBtn.addEventListener('click', shutD);
+    bd.addEventListener('click', shutD);
+    document.addEventListener('keydown', function(e){ if(e.key==='Escape') shutD(); });
+    // префилл параметрами проекта (площадь, этажность, стандартные высоты HotWell.kz)
+    var area=drawer.getAttribute('data-area'), floors=parseFloat(drawer.getAttribute('data-floors')||'0');
+    var a=document.getElementById('cArea'), f=document.getElementById('cFloors');
+    if(f && floors){ var lbl=floors>=1.5?'2 этажа':'1 этаж'; if([].some.call(f.options,function(o){return o.value===lbl;})){ f.value=lbl; f.dispatchEvent(new Event('change',{bubbles:true})); } }
+    if(area && +area>50){ ['cH1','cH2'].forEach(function(id){ var h=document.getElementById(id); if(h && [].some.call(h.options,function(o){return o.value==='2.8';})){ h.value='2.8'; h.dispatchEvent(new Event('change',{bubbles:true})); } }); }
+    if(a && area){ a.value=area; a.dispatchEvent(new Event('input',{bubbles:true})); }
+  })();
+</script>
 </body>
 </html>"""
     repl = {
@@ -881,6 +912,8 @@ __BOTTOM__
         "__GROUP__": esc(p["group"]), "__PRICE__": price_block, "__SPECS__": specs_html,
         "__WA__": esc(wa_link(p["name"])), "__DESCBLOCK__": desc_block,
         "__FAQ__": faq_block, "__GEO__": geo_links_block("../"), "__CSSVER__": css_ver(),
+        "__AREA__": (str(int(p["area"])) if p["area"] and p["area"] == int(p["area"]) else (str(p["area"]) if p["area"] else "")),
+        "__FLOORSNUM__": (str(p["floors"]) if p["floors"] else ""),
         "__ROBOTS__": ('\n<meta name="robots" content="noindex, follow">'
                        if p["group"] == "СИП-панели" else ""),
         "__INCLUDES__": includes_table(), "__BOTTOM__": mobile_bar("../"),

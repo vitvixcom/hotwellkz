@@ -127,6 +127,25 @@ ul{margin:0;padding:0;list-style:none}
 .pg-price-hint{margin:8px 0 0;font-size:.88rem;line-height:1.5;color:#1a7d3c;background:#eef7f0;border:1px solid #cfe8d6;border-radius:10px;padding:9px 12px}
 .pg-price-hint+.pg-price-note{margin-top:8px}
 @media(max-width:560px){.pg-ft{padding:8px 11px;font-size:.8rem}}
+/* Выезжающий калькулятор (кнопка-вкладка справа + панель) */
+.calc-fab{position:fixed;right:0;top:42%;z-index:118;display:flex;align-items:center;gap:7px;background:var(--c-green,#1a7d3c);color:#fff;border:0;cursor:pointer;padding:11px 14px;border-radius:14px 0 0 14px;font:inherit;font-weight:700;font-size:.9rem;box-shadow:-4px 6px 18px rgba(20,22,16,.24);transition:padding .2s,background .2s}
+.calc-fab svg{flex:none}
+.calc-fab:hover{background:var(--c-green-700,#15692f)}
+.calc-drawer{position:fixed;top:0;right:0;bottom:0;width:94%;max-width:430px;background:var(--c-bg,#f4f2ec);z-index:130;transform:translateX(106%);transition:transform .34s cubic-bezier(.2,.8,.2,1);display:flex;flex-direction:column;overflow:hidden}
+.calc-drawer.open{transform:translateX(0);box-shadow:-16px 0 48px rgba(20,22,16,.3)}
+.calc-drawer__head{flex:none;display:flex;align-items:center;justify-content:space-between;padding:15px 18px;background:var(--c-surface,#fff);border-bottom:1px solid var(--c-line,#e6e6e6)}
+.calc-drawer__head b{font-size:1.1rem}
+.calc-drawer__close{appearance:none;border:0;background:none;font-size:1.8rem;line-height:1;color:var(--c-muted,#777);cursor:pointer;padding:0 4px}
+.calc-drawer__body{flex:1;overflow:auto;-webkit-overflow-scrolling:touch;padding:16px 18px 28px}
+.calc-drawer__hint{margin:0 0 14px;font-size:.86rem;line-height:1.5;color:#1a7d3c;background:#eef7f0;border:1px solid #cfe8d6;border-radius:10px;padding:9px 12px}
+.calc-drawer .calc-form{grid-template-columns:1fr;gap:12px}
+.calc-drawer .cfloor{grid-template-columns:1fr 1fr}
+.calc-drawer__result{margin-top:18px;background:var(--c-surface,#fff);border:1px solid var(--c-line,#e6e6e6);border-radius:var(--r-lg,16px);box-shadow:var(--sh-sm);padding:18px}
+.calc-drawer__result:empty{display:none}
+.calc-drawer-backdrop{position:fixed;inset:0;background:rgba(20,22,16,.5);opacity:0;visibility:hidden;transition:.3s ease;z-index:125}
+.calc-drawer-backdrop.open{opacity:1;visibility:visible}
+body.calc-open{overflow:hidden}
+@media(max-width:560px){.calc-fab__t{display:none}.calc-fab{padding:13px 12px;border-radius:14px 0 0 14px}}
 @media(max-width:560px){.pg-price-wrap{margin:6px 0 16px}.pg-price-note{font-size:.8rem;padding:9px 11px}}
 .project h3{font-size:1.02rem;line-height:1.3;margin:0;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
 .project .meta{display:flex;flex-wrap:wrap;gap:6px;margin:2px 0 4px}
