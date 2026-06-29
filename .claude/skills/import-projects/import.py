@@ -83,6 +83,7 @@ EST_FOUNDATION_40 = 7691      # Ж/Б ленточ. Зас. ПГС, стяжка
 EST_ROOF_2SKAT = 1616         # 2-скатная (строп. система + металлочерепица)
 EST_FLOORS_ADD = {1: 7295, 2: 1619}
 EST_H = {2.5: 0, 2.8: 3798}   # надбавка за высоту этажа
+EST_MANSARD_ADD = 7736        # надбавка за мансардный этаж (FLOOR_TYPE «Мансардный»)
 EST_MULT = 1.1
 
 
@@ -93,10 +94,11 @@ def _est_base(a):
     return 0
 
 
-def estimate_house_price(area, floors_n):
+def estimate_house_price(area, floors_n, mansard=False):
     """Стандартная авто-оценка стоимости дома «от» (₸, без НДС и доставки).
     Высоты: 1 этаж — 2,8 м (для домов >50 м², иначе 2,5). 2 этажа — 1-й 2,8 м,
-    2-й 2,5 м (дом ≤100 м²) или 2,8 м (дом >100 м²); для домов ≤50 м² — 2,5/2,5."""
+    2-й 2,5 м (дом ≤100 м²) или 2,8 м (дом >100 м²); для домов ≤50 м² — 2,5/2,5.
+    mansard=True (полтора этажа) — добавляет надбавку за мансардный этаж."""
     base = _est_base(area)
     if not base:
         return 0
@@ -108,6 +110,8 @@ def estimate_house_price(area, floors_n):
         h2 = (2.8 if area > 100 else 2.5) if area > 50 else 2.5
         h_add = EST_H[h1] + EST_H[h2]
     pps = base + floors_add + h_add + EST_FOUNDATION_40 + EST_ROOF_2SKAT
+    if mansard:
+        pps += EST_MANSARD_ADD
     base_total = int(pps * area + 0.5)          # Math.round
     return int(base_total * EST_MULT + 0.5)     # ×1.1, Math.round
 
@@ -266,8 +270,10 @@ def parse_csv(path):
     for p in items:
         p["price_est"] = False
         if (not p["price"]) and p["area"] and p["group"] in ("Проекты", "Построенные объекты"):
-            n = 2 if (p["floors"] or 1) >= 1.5 else 1
-            est = estimate_house_price(p["area"], n)
+            fl = p["floors"] or 1
+            n = 2 if fl >= 1.5 else 1
+            mansard = 1.0 < fl < 2.0   # полтора этажа — мансардный
+            est = estimate_house_price(p["area"], n, mansard=mansard)
             if est:
                 p["price"] = est
                 p["price_est"] = True
