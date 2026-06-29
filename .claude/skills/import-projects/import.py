@@ -640,12 +640,15 @@ def project_page(p, prv=None, nxt=None, sim=None):
     ld_list = [ld, breadcrumb]
 
     if p["price"]:
-        approx = (' <span class="pg-price-approx" title="Предварительный расчёт">≈</span>'
-                  if p.get("price_est") else '')
-        price_block = '<div class="pg-price">от %s%s</div>' % (fmt_price(p["price"]), approx)
         if p.get("price_est"):
-            price_block += ('<p class="pg-price-note">Цена рассчитана автоматически по стандартным '
-                            'параметрам — уточните точную стоимость у менеджера.</p>')
+            price_block = (
+                '<div class="pg-price-wrap">'
+                '<div class="pg-price">от %s <span class="pg-price-approx" title="Предварительный расчёт">≈</span></div>'
+                '<p class="pg-price-note">Цена рассчитана автоматически по стандартным параметрам — '
+                'уточните точную стоимость у менеджера.</p>'
+                '</div>' % fmt_price(p["price"]))
+        else:
+            price_block = '<div class="pg-price">от %s</div>' % fmt_price(p["price"])
     else:
         price_block = '<div class="pg-price pg-price--ask">Цена по запросу</div>'
     # Уникальное SEO-описание из достоверных характеристик проекта + FAQ с FAQPage-разметкой
