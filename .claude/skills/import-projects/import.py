@@ -713,23 +713,31 @@ def project_page(p, prv=None, nxt=None, sim=None):
 
     _note = ('<p class="pg-price-note">Цена рассчитана автоматически по стандартным параметрам — '
              'уточните точную стоимость у менеджера.</p>')
-    _mansard = (p.get("price_est") and p.get("area") and p.get("floors")
+    # Все 1.5-этажные дома (мансарда) — даём переключатель на «2 полных этажа» (дешевле).
+    _mansard = (p["price"] and p.get("area") and p.get("floors")
                 and 1.0 < p["floors"] < 2.0 and p["group"] in ("Проекты", "Построенные объекты"))
     if not p["price"]:
         price_block = '<div class="pg-price pg-price--ask">Цена по запросу</div>'
     elif _mansard:
-        # 1.5 этажа = мансарда (дороже). Даём переключатель на «2 полных этажа» (дешевле).
-        full_price = estimate_house_price(p["area"], 2, mansard=False)
-        save = max(0, p["price"] - full_price)
+        # «2 этажа» = текущая цена минус надбавка за мансарду (по формуле калькулятора).
+        surcharge = (estimate_house_price(p["area"], 2, mansard=True)
+                     - estimate_house_price(p["area"], 2, mansard=False))
+        full_price = max(0, p["price"] - surcharge)
+        save = p["price"] - full_price
+        est = bool(p.get("price_est"))
+        # ≈ для авто-цены виден всегда; для реальной — только в режиме «2 этажа» (расчётная)
+        approx = ('<span class="pg-price-approx" id="pgApprox" title="Предварительный расчёт"%s>≈</span>'
+                  % ('' if est else ' hidden'))
         price_block = (
-            '<div class="pg-price-wrap" data-pmans="%d" data-pfull="%d" data-save="%d" data-floors="%s">'
+            '<div class="pg-price-wrap" data-pmans="%d" data-pfull="%d" data-save="%d" data-floors="%s" data-est="%d">'
             '<div class="pg-ftoggle" role="group" aria-label="Этажность">'
             '<button type="button" class="pg-ft is-on" data-v="mansard">1,5 этажа · мансарда</button>'
             '<button type="button" class="pg-ft" data-v="full">2 полных этажа</button>'
             '</div>'
-            '<div class="pg-price">от <span id="pgPriceVal">%s</span> <span class="pg-price-approx" title="Предварительный расчёт">≈</span></div>'
+            '<div class="pg-price">от <span id="pgPriceVal">%s</span> %s</div>'
             '<p class="pg-price-hint" id="pgPriceHint"></p>%s</div>'
-            % (p["price"], full_price, save, esc(p["floors_txt"] or "1,5 этажа"), fmt_price(p["price"]), _note))
+            % (p["price"], full_price, save, esc(p["floors_txt"] or "1,5 этажа"), int(est),
+               fmt_price(p["price"]), approx, (_note if est else "")))
     elif p.get("price_est"):
         price_block = (
             '<div class="pg-price-wrap">'
@@ -853,17 +861,19 @@ __BOTTOM__
   (function(){
     var w=document.querySelector('.pg-price-wrap[data-pmans]'); if(!w) return;
     var pm=+w.getAttribute('data-pmans'), pf=+w.getAttribute('data-pfull'), sv=+w.getAttribute('data-save'),
-        fl=w.getAttribute('data-floors')||'1,5 этажа';
+        fl=w.getAttribute('data-floors')||'1,5 этажа', est=w.getAttribute('data-est')==='1';
     var val=document.getElementById('pgPriceVal'), hint=document.getElementById('pgPriceHint'),
-        fb=document.getElementById('pgFloorsVal');
+        fb=document.getElementById('pgFloorsVal'), approx=document.getElementById('pgApprox');
     function fmt(n){ return (''+n).replace(/\\B(?=(\\d{3})+(?!\\d))/g,' ')+' \\u20b8'; }
     function set(mode){
       w.querySelectorAll('.pg-ft').forEach(function(b){ b.classList.toggle('is-on', b.getAttribute('data-v')===mode); });
       if(mode==='full'){
-        val.textContent=fmt(pf); if(fb)fb.textContent='2 этажа';
-        hint.innerHTML='\\u2713 Цена с полноценным 2-м этажом. Вариант с мансардой (1,5 эт.) дороже на <b>'+fmt(sv)+'</b>.';
+        val.textContent=fmt(pf); if(fb)fb.textContent='2 этажа'; if(approx) approx.hidden=false;
+        hint.innerHTML = est
+          ? '\\u2713 Цена с полноценным 2-м этажом. Вариант с мансардой (1,5 эт.) дороже на <b>'+fmt(sv)+'</b>.'
+          : '\\u2713 Ориентировочная цена с полноценным 2-м этажом (дешевле на <b>'+fmt(sv)+'</b>). Точную уточните у менеджера.';
       } else {
-        val.textContent=fmt(pm); if(fb)fb.textContent=fl;
+        val.textContent=fmt(pm); if(fb)fb.textContent=fl; if(approx) approx.hidden=!est;
         hint.innerHTML='\\uD83D\\uDCA1 Можно построить с полноценным 2-м этажом — дешевле на <b>'+fmt(sv)+'</b>.';
       }
     }

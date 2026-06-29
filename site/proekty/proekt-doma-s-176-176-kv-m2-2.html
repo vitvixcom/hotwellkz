@@ -34,7 +34,7 @@
       <aside class="pg-info">
         <span class="eyebrow">Проекты</span>
         <h1>Проект дома «С-176Б»</h1>
-        <div class="pg-price">от 17 597 659 ₸</div>
+        <div class="pg-price-wrap" data-pmans="17597659" data-pfull="16099969" data-save="1497690" data-floors="1.5 этажа" data-est="0"><div class="pg-ftoggle" role="group" aria-label="Этажность"><button type="button" class="pg-ft is-on" data-v="mansard">1,5 этажа · мансарда</button><button type="button" class="pg-ft" data-v="full">2 полных этажа</button></div><div class="pg-price">от <span id="pgPriceVal">17 597 659 ₸</span> <span class="pg-price-approx" id="pgApprox" title="Предварительный расчёт" hidden>≈</span></div><p class="pg-price-hint" id="pgPriceHint"></p></div>
         <div class="pg-specs"><div class="spec"><span>Площадь</span><b>176 м²</b></div><div class="spec"><span>Этажность</span><b id="pgFloorsVal">1.5 этажа</b></div><div class="spec"><span>Спальни</span><b>4</b></div></div>
         <div class="pg-actions">
           <a href="../index.html#calc" class="btn btn--primary btn--lg btn--block">Рассчитать стоимость</a>
@@ -104,17 +104,19 @@
   (function(){
     var w=document.querySelector('.pg-price-wrap[data-pmans]'); if(!w) return;
     var pm=+w.getAttribute('data-pmans'), pf=+w.getAttribute('data-pfull'), sv=+w.getAttribute('data-save'),
-        fl=w.getAttribute('data-floors')||'1,5 этажа';
+        fl=w.getAttribute('data-floors')||'1,5 этажа', est=w.getAttribute('data-est')==='1';
     var val=document.getElementById('pgPriceVal'), hint=document.getElementById('pgPriceHint'),
-        fb=document.getElementById('pgFloorsVal');
+        fb=document.getElementById('pgFloorsVal'), approx=document.getElementById('pgApprox');
     function fmt(n){ return (''+n).replace(/\B(?=(\d{3})+(?!\d))/g,' ')+' \u20b8'; }
     function set(mode){
       w.querySelectorAll('.pg-ft').forEach(function(b){ b.classList.toggle('is-on', b.getAttribute('data-v')===mode); });
       if(mode==='full'){
-        val.textContent=fmt(pf); if(fb)fb.textContent='2 этажа';
-        hint.innerHTML='\u2713 Цена с полноценным 2-м этажом. Вариант с мансардой (1,5 эт.) дороже на <b>'+fmt(sv)+'</b>.';
+        val.textContent=fmt(pf); if(fb)fb.textContent='2 этажа'; if(approx) approx.hidden=false;
+        hint.innerHTML = est
+          ? '\u2713 Цена с полноценным 2-м этажом. Вариант с мансардой (1,5 эт.) дороже на <b>'+fmt(sv)+'</b>.'
+          : '\u2713 Ориентировочная цена с полноценным 2-м этажом (дешевле на <b>'+fmt(sv)+'</b>). Точную уточните у менеджера.';
       } else {
-        val.textContent=fmt(pm); if(fb)fb.textContent=fl;
+        val.textContent=fmt(pm); if(fb)fb.textContent=fl; if(approx) approx.hidden=!est;
         hint.innerHTML='\uD83D\uDCA1 Можно построить с полноценным 2-м этажом — дешевле на <b>'+fmt(sv)+'</b>.';
       }
     }
