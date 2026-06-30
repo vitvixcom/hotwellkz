@@ -38,6 +38,7 @@ D = {
                            "чертежи", "бесплатно", "форум", "модульные", "контейнер"],
     "shared_lists": ["Универсальные минус-слова RU+KZ v1"],
     "warm_audience": {"name": "Warm pixel · all visitors · hotwellkz.kz · 540d", "bid_pct": 50},
+    "business_identity": {"name": "HotWell.kz", "logo_path": "site/assets/logo-1200.png"},
 }
 
 
@@ -295,6 +296,43 @@ def build(spec):
                 casvc.mutate_campaign_assets(customer_id=CID, operations=ca_ops)
                 print(" ✓ Ассеты: %d sitelinks + %d callouts + %d snippets" %
                       (len(a.get("sitelinks", [])), len(a.get("callouts", [])), len(a.get("snippets", []))))
+
+        # 7.5) бизнес-имя + логотип (по умолчанию HotWell.kz; нужна проверка рекламодателя)
+        bi = g(spec, "business_identity")
+        if bi and bi.get("name"):
+            try:
+                asvc2 = client.get_service("AssetService"); F = E.AssetFieldTypeEnum
+                top = client.get_type("AssetOperation")
+                top.create.name = "Business name " + bi["name"]
+                top.create.text_asset.text = bi["name"]
+                name_rn = asvc2.mutate_assets(customer_id=CID, operations=[top]).results[0].resource_name
+                logo_rn = None
+                lp = bi.get("logo_path")
+                if lp:
+                    repo = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", ".."))
+                    labs = lp if os.path.isabs(lp) else os.path.join(repo, lp)
+                    if os.path.exists(labs):
+                        with open(labs, "rb") as f:
+                            data = f.read()
+                        lop = client.get_type("AssetOperation")
+                        lop.create.name = "Logo " + bi["name"]
+                        lop.create.type_ = E.AssetTypeEnum.IMAGE
+                        lop.create.image_asset.data = data
+                        lop.create.image_asset.mime_type = E.MimeTypeEnum.IMAGE_PNG
+                        logo_rn = asvc2.mutate_assets(customer_id=CID, operations=[lop]).results[0].resource_name
+                casvc2 = client.get_service("CampaignAssetService"); link_ops = []
+                o = client.get_type("CampaignAssetOperation")
+                o.create.campaign = camp_rn; o.create.asset = name_rn; o.create.field_type = F.BUSINESS_NAME
+                link_ops.append(o)
+                if logo_rn:
+                    o2 = client.get_type("CampaignAssetOperation")
+                    o2.create.campaign = camp_rn; o2.create.asset = logo_rn; o2.create.field_type = F.BUSINESS_LOGO
+                    link_ops.append(o2)
+                casvc2.mutate_campaign_assets(customer_id=CID, operations=link_ops)
+                print(" ✓ Бизнес-имя «%s»%s добавлены" % (bi["name"], " + логотип" if logo_rn else ""))
+            except GoogleAdsException as ex:
+                print(" ! Бизнес-имя/логотип не добавлены (нужна проверка рекламодателя?):",
+                      "; ".join(e.message for e in ex.failure.errors))
 
         # 8) warm-pixel аудитория + bid
         wa = g(spec, "warm_audience")
