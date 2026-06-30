@@ -1,9 +1,10 @@
-/* Google Ads global tag + conversion на отправку формы.
-   Один источник правды для тега: меняйте AW/LABEL только здесь.
+/* Google Ads global tag + конверсии: отправка формы и клик по WhatsApp.
+   Один источник правды для тегов: меняйте AW/LABEL только здесь.
    Подключается строкой <script src="/assets/gtag.js" defer></script> на каждой странице. */
 (function () {
   var AW = 'AW-11012690511';
-  var LABEL = 'AW-11012690511/aGVPCLngocgcEM-koYMp'; // conversion: «Заявка с сайта · форма»
+  var FORM_LABEL = 'AW-11012690511/aGVPCLngocgcEM-koYMp'; // «Заявка с сайта · форма» ($50)
+  var WA_LABEL = 'AW-11012690511/kTjSCI_t664aEM-koYMp';   // «WhatsApp Клик» ($50)
 
   // загрузка gtag.js
   var s = document.createElement('script');
@@ -17,22 +18,32 @@
   gtag('js', new Date());
   gtag('config', AW);
 
-  // конверсия при отправке любой лид-формы (значение берётся из conversion action по умолчанию)
-  function bind() {
+  function fire(label) {
+    if (typeof gtag === 'function') {
+      gtag('event', 'conversion', { send_to: label }); // значение берётся из conversion action
+    }
+  }
+
+  // 1) Конверсия при отправке лид-формы
+  function bindForms() {
     var forms = document.querySelectorAll(
       '#callbackForm, form[name="lead"], form.lead-form, form.callback-form'
     );
     forms.forEach(function (f) {
-      f.addEventListener('submit', function () {
-        if (typeof gtag === 'function') {
-          gtag('event', 'conversion', { send_to: LABEL });
-        }
-      }, { once: true });
+      f.addEventListener('submit', function () { fire(FORM_LABEL); }, { once: true });
     });
   }
+
+  // 2) Конверсия при клике по любой кнопке/ссылке WhatsApp (делегирование — ловит все 2600+ страниц)
+  document.addEventListener('click', function (e) {
+    var t = e.target;
+    var a = t && t.closest ? t.closest('a[href*="wa.me"], a[href*="api.whatsapp"], a[href*="whatsapp.com"]') : null;
+    if (a) { fire(WA_LABEL); }
+  }, true);
+
   if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', bind);
+    document.addEventListener('DOMContentLoaded', bindForms);
   } else {
-    bind();
+    bindForms();
   }
 })();
