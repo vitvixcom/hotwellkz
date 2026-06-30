@@ -17,5 +17,5 @@ export default async () => {
   }
 };
 
-// Расписание (UTC). По умолчанию — ежедневно в 06:00 UTC (~11:00 по Астане).
-export const config = { schedule: "0 6 * * *" };
+// Расписание (UTC). Каждые 6 часов: 00:00, 06:00, 12:00, 18:00 UTC.
+export const config = { schedule: "0 */6 * * *" };
