@@ -61,6 +61,14 @@
            transition:.25s; pointer-events:none; z-index:50; max-width:90vw; text-align:center; }
   .toast.show { opacity:1; transform:translateX(-50%) translateY(0); }
 
+  /* подсказки по показателям */
+  .tipd { cursor:help; }
+  .tipd .qm { font-style:normal; opacity:.5; margin-left:3px; font-size:.9em; }
+  #tip { position:fixed; z-index:100; max-width:262px; background:#111; color:#fff; font-size:12.5px;
+         line-height:1.5; padding:10px 12px; border-radius:10px; box-shadow:0 8px 24px rgba(0,0,0,.2);
+         opacity:0; pointer-events:none; transition:opacity .12s; }
+  #tip.show { opacity:1; }
+
   /* ---------- МОБИЛЬНАЯ ВЕРСИЯ ---------- */
   @media (max-width:760px) {
     .dash { padding:18px 12px 56px; }
@@ -105,12 +113,29 @@
   <div class="recs" id="recs"></div>
 </div>
 <div class="toast" id="toast"></div>
+<div id="tip"></div>
 
 <script>
 const CUSTOMER_ID = "8802382037";
 const money = n => "$" + (Math.round(n*100)/100).toLocaleString("en-US",{minimumFractionDigits:0, maximumFractionDigits:2});
 const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const roasClass = r => r>=1 ? "good" : (r>0 ? "mid" : "bad");
+
+const DEFS = {
+  cost: "Расход — сколько денег потрачено на эту кампанию за 30 дней.",
+  roas: "ROAS — окупаемость рекламы: сколько дохода (ценности конверсий) даёт каждый $1 расхода. 2× = на $1 вернулось $2. «—» означает, что ценность конверсий нулевая или ещё не настроена.",
+  conv: "Конверсии — целевые действия, которые засчитала Google Ads: заявка с формы или клик по WhatsApp.",
+  conv_value: "Ценность — суммарная стоимость конверсий в деньгах (по заданной цене конверсии). $0 — ценность ещё не накопилась или не задавалась.",
+  cpa: "CPA — цена за конверсию: расход ÷ число конверсий. Сколько в среднем стоит одно целевое действие.",
+  clicks: "Клики — сколько раз люди нажали на объявление за 30 дней.",
+  k_cost: "Суммарный расход по всем кампаниям за последние 30 дней.",
+  k_value: "Суммарная ценность всех конверсий за 30 дней в деньгах.",
+  k_roas: "Окупаемость по всему аккаунту: ценность конверсий ÷ расход.",
+  k_pot: "Оценка: сколько денег в месяц можно дополнительно вернуть, если применить рекомендации ниже."
+};
+const tipAttr = key => `data-tip="${esc(DEFS[key])}" tabindex="0" role="button"`;
+const K = (key, text) => `<span class="k tipd" ${tipAttr(key)}>${text}<i class="qm">ⓘ</i></span>`;
+const L = (key, text) => `<div class="lbl tipd" ${tipAttr(key)}>${text}<i class="qm">ⓘ</i></div>`;
 
 function toast(msg){ const t=document.getElementById("toast"); t.textContent=msg; t.classList.add("show");
   clearTimeout(t._t); t._t=setTimeout(()=>t.classList.remove("show"), 2600); }
@@ -146,12 +171,12 @@ function renderCamps(){
       <span class="pill ${c.status}">${c.status}</span>
     </div>
     <div class="camp__grid">
-      <div class="m"><span class="k">Расход</span><span class="v">${money(c.cost)}</span></div>
-      <div class="m"><span class="k">ROAS</span><span class="v roas ${roasClass(c.roas)}">${c.roas ? c.roas.toFixed(2)+"×" : "—"}</span></div>
-      <div class="m"><span class="k">Конв.</span><span class="v">${c.conv}</span></div>
-      <div class="m"><span class="k">Ценность</span><span class="v">${money(c.conv_value)}</span></div>
-      <div class="m"><span class="k">CPA</span><span class="v">${c.cpa ? money(c.cpa) : "—"}</span></div>
-      <div class="m"><span class="k">Клики</span><span class="v">${c.clicks.toLocaleString("ru-RU")}</span></div>
+      <div class="m">${K("cost","Расход")}<span class="v">${money(c.cost)}</span></div>
+      <div class="m">${K("roas","ROAS")}<span class="v roas ${roasClass(c.roas)}">${c.roas ? c.roas.toFixed(2)+"×" : "—"}</span></div>
+      <div class="m">${K("conv","Конв.")}<span class="v">${c.conv}</span></div>
+      <div class="m">${K("conv_value","Ценность")}<span class="v">${money(c.conv_value)}</span></div>
+      <div class="m">${K("cpa","CPA")}<span class="v">${c.cpa ? money(c.cpa) : "—"}</span></div>
+      <div class="m">${K("clicks","Клики")}<span class="v">${c.clicks.toLocaleString("ru-RU")}</span></div>
     </div>
   </div>`).join("");
 }
@@ -174,11 +199,33 @@ function renderRecs(){
 function renderKpis(){
   const t=DATA.totals, accRoas = t.cost>0 ? (t.conv_value/t.cost) : 0;
   document.getElementById("kpis").innerHTML = `
-    <div class="kpi"><div class="lbl">Расход · 30 дн</div><div class="val">${money(t.cost)}</div></div>
-    <div class="kpi"><div class="lbl">Ценность конверсий</div><div class="val">${money(t.conv_value)}</div></div>
-    <div class="kpi"><div class="lbl">ROAS аккаунта</div><div class="val roas ${roasClass(accRoas)}">${accRoas.toFixed(2)}×</div></div>
-    <div class="kpi"><div class="lbl">Потенциал рекоменд.</div><div class="val" style="color:var(--ok)">${money(t.potential_gain)}</div></div>`;
+    <div class="kpi">${L("k_cost","Расход · 30 дн")}<div class="val">${money(t.cost)}</div></div>
+    <div class="kpi">${L("k_value","Ценность конверсий")}<div class="val">${money(t.conv_value)}</div></div>
+    <div class="kpi">${L("k_roas","ROAS аккаунта")}<div class="val roas ${roasClass(accRoas)}">${accRoas.toFixed(2)}×</div></div>
+    <div class="kpi">${L("k_pot","Потенциал рекоменд.")}<div class="val" style="color:var(--ok)">${money(t.potential_gain)}</div></div>`;
 }
+
+/* подсказки: тап (моб.) и наведение (ПК) */
+(function(){
+  const tip=document.getElementById("tip"); let cur=null;
+  function show(el){
+    tip.textContent=el.dataset.tip; tip.classList.add("show");
+    const r=el.getBoundingClientRect(), tw=tip.offsetWidth, th=tip.offsetHeight;
+    let left=Math.min(Math.max(8,r.left), innerWidth-tw-8);
+    let top=r.bottom+6; if(top+th>innerHeight-8) top=r.top-th-6;
+    tip.style.left=left+"px"; tip.style.top=Math.max(8,top)+"px"; cur=el;
+  }
+  function hide(){ tip.classList.remove("show"); cur=null; }
+  document.addEventListener("click", e=>{
+    const el=e.target.closest("[data-tip]");
+    if(el){ e.stopPropagation(); (cur===el)?hide():show(el); } else hide();
+  });
+  if(matchMedia("(hover:hover)").matches){
+    document.addEventListener("mouseover", e=>{ const el=e.target.closest("[data-tip]"); if(el) show(el); });
+    document.addEventListener("mouseout", e=>{ if(e.target.closest("[data-tip]")) hide(); });
+  }
+  addEventListener("scroll", hide, true); addEventListener("resize", hide);
+})();
 
 fetch("/dashboard-data.json?_="+Date.now()).then(r=>r.json()).then(d=>{
   DATA=d;
