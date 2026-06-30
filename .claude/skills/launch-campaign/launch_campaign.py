@@ -373,13 +373,146 @@ def build(spec):
         sys.exit(1)
 
 
+def finish(spec):
+    """Дозаливка только хвоста сборки (ассеты + бизнес-имя/логотип + warm-pixel
+    аудитория) в УЖЕ существующую кампанию/группу. Нужно при обрыве build на
+    дневной квоте API (RESOURCE_EXHAUSTED). Берёт campaign_id и ad_group_id из spec
+    (или env CAMPAIGN_ID / AD_GROUP_ID). Идемпотентности нет — запускать один раз."""
+    from google.ads.googleads.client import GoogleAdsClient
+    from google.ads.googleads.errors import GoogleAdsException
+
+    CID = (spec.get("customer_id") or D["customer_id"]).replace("-", "")
+    camp_id = str(spec.get("campaign_id") or os.environ.get("CAMPAIGN_ID", "")).strip()
+    ag_id = str(spec.get("ad_group_id") or os.environ.get("AD_GROUP_ID", "")).strip()
+    if not camp_id or not ag_id:
+        sys.exit("finish: нужны campaign_id и ad_group_id (в spec или env CAMPAIGN_ID/AD_GROUP_ID)")
+    cfg = dict(developer_token=os.environ["GOOGLE_ADS_DEVELOPER_TOKEN"],
+               client_id=os.environ["GOOGLE_ADS_CLIENT_ID"],
+               client_secret=os.environ["GOOGLE_ADS_CLIENT_SECRET"],
+               refresh_token=os.environ["GOOGLE_ADS_REFRESH_TOKEN"],
+               login_customer_id=CID, use_proto_plus=True)
+    client = GoogleAdsClient.load_from_dict(cfg)
+    E = client.enums
+    ga = client.get_service("GoogleAdsService")
+    agsvc = client.get_service("AdGroupService")
+    agcsvc = client.get_service("AdGroupCriterionService")
+    camp_rn = "customers/%s/campaigns/%s" % (CID, camp_id)
+    ag_rn = "customers/%s/adGroups/%s" % (CID, ag_id)
+    print("=== FINISH · кампания %s · группа %s ===" % (camp_id, ag_id))
+    try:
+        # 7) ассеты кампании
+        a = spec.get("assets", {})
+        if a:
+            asvc = client.get_service("AssetService"); F = E.AssetFieldTypeEnum
+            aops, plan = [], []
+            for sl in a.get("sitelinks", []):
+                o = client.get_type("AssetOperation"); x = o.create
+                x.sitelink_asset.link_text = sl["text"]
+                if sl.get("desc1"): x.sitelink_asset.description1 = sl["desc1"]
+                if sl.get("desc2"): x.sitelink_asset.description2 = sl["desc2"]
+                x.final_urls.append(sl["url"]); aops.append(o); plan.append(F.SITELINK)
+            for c in a.get("callouts", []):
+                o = client.get_type("AssetOperation"); o.create.callout_asset.callout_text = c
+                aops.append(o); plan.append(F.CALLOUT)
+            for sn in a.get("snippets", []):
+                o = client.get_type("AssetOperation")
+                o.create.structured_snippet_asset.header = sn["header"]
+                o.create.structured_snippet_asset.values.extend(sn["values"])
+                aops.append(o); plan.append(F.STRUCTURED_SNIPPET)
+            if aops:
+                ares2 = asvc.mutate_assets(customer_id=CID, operations=aops)
+                casvc = client.get_service("CampaignAssetService"); ca_ops = []
+                for ftype, rn in zip(plan, [r.resource_name for r in ares2.results]):
+                    o = client.get_type("CampaignAssetOperation")
+                    o.create.campaign = camp_rn; o.create.asset = rn; o.create.field_type = ftype
+                    ca_ops.append(o)
+                casvc.mutate_campaign_assets(customer_id=CID, operations=ca_ops)
+                print(" ✓ Ассеты: %d sitelinks + %d callouts + %d snippets" %
+                      (len(a.get("sitelinks", [])), len(a.get("callouts", [])), len(a.get("snippets", []))))
+
+        # 7.5) бизнес-имя + логотип
+        bi = g(spec, "business_identity")
+        if bi and bi.get("name"):
+            try:
+                asvc2 = client.get_service("AssetService"); F = E.AssetFieldTypeEnum
+                top = client.get_type("AssetOperation")
+                top.create.name = "Business name " + bi["name"]
+                top.create.text_asset.text = bi["name"]
+                name_rn = asvc2.mutate_assets(customer_id=CID, operations=[top]).results[0].resource_name
+                logo_rn = None
+                lp = bi.get("logo_path")
+                if lp:
+                    repo = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", ".."))
+                    labs = lp if os.path.isabs(lp) else os.path.join(repo, lp)
+                    if os.path.exists(labs):
+                        with open(labs, "rb") as f:
+                            data = f.read()
+                        lop = client.get_type("AssetOperation")
+                        lop.create.name = "Logo " + bi["name"]
+                        lop.create.type_ = E.AssetTypeEnum.IMAGE
+                        lop.create.image_asset.data = data
+                        lop.create.image_asset.mime_type = E.MimeTypeEnum.IMAGE_PNG
+                        logo_rn = asvc2.mutate_assets(customer_id=CID, operations=[lop]).results[0].resource_name
+                casvc2 = client.get_service("CampaignAssetService"); link_ops = []
+                o = client.get_type("CampaignAssetOperation")
+                o.create.campaign = camp_rn; o.create.asset = name_rn; o.create.field_type = F.BUSINESS_NAME
+                link_ops.append(o)
+                if logo_rn:
+                    o2 = client.get_type("CampaignAssetOperation")
+                    o2.create.campaign = camp_rn; o2.create.asset = logo_rn; o2.create.field_type = F.BUSINESS_LOGO
+                    link_ops.append(o2)
+                casvc2.mutate_campaign_assets(customer_id=CID, operations=link_ops)
+                print(" ✓ Бизнес-имя «%s»%s добавлены" % (bi["name"], " + логотип" if logo_rn else ""))
+            except GoogleAdsException as ex:
+                print(" ! Бизнес-имя/логотип не добавлены (нужна проверка рекламодателя?):",
+                      "; ".join(e.message for e in ex.failure.errors))
+
+        # 8) warm-pixel аудитория + bid
+        wa = g(spec, "warm_audience")
+        if wa and wa.get("name"):
+            list_rn = None
+            for r in ga.search(customer_id=CID, query="SELECT user_list.resource_name, user_list.name FROM user_list WHERE user_list.name = '%s'" % wa["name"].replace("'", "\\'")):
+                list_rn = r.user_list.resource_name
+            if list_rn:
+                restr = []
+                for r in ga.search(customer_id=CID, query="SELECT ad_group.targeting_setting.target_restrictions FROM ad_group WHERE ad_group.resource_name = '%s'" % ag_rn):
+                    restr = list(r.ad_group.targeting_setting.target_restrictions)
+                if not any(tr.targeting_dimension == E.TargetingDimensionEnum.AUDIENCE and tr.bid_only for tr in restr):
+                    uop = client.get_type("AdGroupOperation"); ug = uop.update; ug.resource_name = ag_rn
+                    ts = ug.targeting_setting
+                    for tr in [t for t in restr if t.targeting_dimension != E.TargetingDimensionEnum.AUDIENCE]:
+                        ts.target_restrictions.append(tr)
+                    ntr = client.get_type("TargetRestriction")
+                    ntr.targeting_dimension = E.TargetingDimensionEnum.AUDIENCE; ntr.bid_only = True
+                    ts.target_restrictions.append(ntr)
+                    uop.update_mask.paths.append("targeting_setting.target_restrictions")
+                    agsvc.mutate_ad_groups(customer_id=CID, operations=[uop])
+                op = client.get_type("AdGroupCriterionOperation"); cc = op.create
+                cc.ad_group = ag_rn; cc.user_list.user_list = list_rn
+                cc.bid_modifier = 1.0 + wa.get("bid_pct", 50) / 100.0
+                cc.status = E.AdGroupCriterionStatusEnum.ENABLED
+                agcsvc.mutate_ad_group_criteria(customer_id=CID, operations=[op])
+                print(" ✓ Warm-pixel аудитория прикреплена (+%d%%)" % wa.get("bid_pct", 50))
+            else:
+                print(" ! Аудитория '%s' не найдена — пропущена" % wa["name"])
+
+        print("\n ХВОСТ ДОБАВЛЕН · PAUSED · Campaign ID", camp_id)
+        print(" Проверка: https://ads.google.com/aw/campaigns?campaignId=%s" % camp_id)
+    except GoogleAdsException as ex:
+        print("GoogleAdsException:")
+        for e in ex.failure.errors: print("  -", e.message)
+        sys.exit(1)
+
+
 if __name__ == "__main__":
     if len(sys.argv) < 3:
-        sys.exit("Использование: launch_campaign.py [validate|build] spec.json")
+        sys.exit("Использование: launch_campaign.py [validate|build|finish] spec.json")
     spec = json.load(open(sys.argv[2], encoding="utf-8"))
     if sys.argv[1] == "validate":
         sys.exit(1 if report(spec) else 0)
     elif sys.argv[1] == "build":
         build(spec)
+    elif sys.argv[1] == "finish":
+        finish(spec)
     else:
-        sys.exit("Режим: validate|build")
+        sys.exit("Режим: validate|build|finish")
