@@ -252,10 +252,11 @@ def build(spec):
             aga.ad_group = ag_rn; aga.status = E.AdGroupAdStatusEnum.PAUSED
             aga.ad.final_urls.append(FINAL_URL)
             rsa = aga.ad.responsive_search_ad
-            for h in rot(PIN, i)[:3]:
+            pin3 = rot(PIN, i)[:3]
+            for h in pin3:
                 a = client.get_type("AdTextAsset"); a.text = h
                 a.pinned_field = E.ServedAssetFieldTypeEnum.HEADLINE_1; rsa.headlines.append(a)
-            for h in rot(FREE, i)[:12]:
+            for h in [x for x in rot(FREE, i) if x not in pin3][:12]:   # дедуп: free не дублируют pinned
                 a = client.get_type("AdTextAsset"); a.text = h; rsa.headlines.append(a)
             for d in rot(DESCS, i)[:4]:
                 a = client.get_type("AdTextAsset"); a.text = d; rsa.descriptions.append(a)
