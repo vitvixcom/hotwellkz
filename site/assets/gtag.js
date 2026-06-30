@@ -24,13 +24,30 @@
     }
   }
 
-  // 1) Конверсия при отправке лид-формы
+  // Открыть WhatsApp с данными формы (наш единственный канал заявок)
+  function waSend(f) {
+    var val = function (sel) { var el = f.querySelector(sel); return el ? (el.value || '').trim() : ''; };
+    var name = val('[name="Имя"]');
+    var phone = val('[name="Телефон"], [type="tel"]');
+    var comment = val('[name="Комментарий"], textarea');
+    var msg = 'Здравствуйте! Меня зовут ' + name + ', телефон ' + phone + '.';
+    if (comment) { msg += ' ' + comment; }
+    msg += ' Оставил(а) заявку на сайте.';
+    window.open('https://wa.me/77477434343?text=' + encodeURIComponent(msg), '_blank');
+  }
+
   function bindForms() {
-    var forms = document.querySelectorAll(
-      '#callbackForm, form[name="lead"], form.lead-form, form.callback-form'
-    );
-    forms.forEach(function (f) {
-      f.addEventListener('submit', function () { fire(FORM_LABEL); }, { once: true });
+    // Контактная форма → конверсия + отправка в WhatsApp (на сервер ничего не уходит)
+    document.querySelectorAll('form[name="lead"], form.lead-form').forEach(function (f) {
+      f.addEventListener('submit', function (e) {
+        e.preventDefault();
+        fire(FORM_LABEL);
+        waSend(f);
+      });
+    });
+    // Форма обратного звонка: WhatsApp открывает её собственный скрипт — нам нужна только конверсия
+    document.querySelectorAll('#callbackForm, form.callback-form').forEach(function (f) {
+      f.addEventListener('submit', function () { fire(FORM_LABEL); });
     });
   }
 
