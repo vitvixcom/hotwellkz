@@ -1,7 +1,9 @@
 # Netlify: статический сайт HotWell.kz лежит в папке site/
 [build]
   publish = "site"
-  command = ""
+  # Обновляет site/dashboard-data.json во время сборки, если заданы GOOGLE_ADS_* env.
+  # Скрипт никогда не валит сборку: без кредов или при ошибке публикуется прежний снимок.
+  command = "bash netlify/refresh-dashboard.sh"
 
 # Долгий кэш для статических ассетов (картинки, og-обложка)
 [[headers]]
