@@ -514,6 +514,7 @@ def project_page(p, prv=None, nxt=None, sim=None):
 <meta name="twitter:card" content="summary_large_image">
 <link rel="stylesheet" href="../css/style.css">
 <script type="application/ld+json">__LD__</script>
+<script src="/assets/gtag.js" defer></script>
 </head>
 <body>
 __SPRITE__
@@ -625,6 +626,7 @@ def catalog_page(groups, price_max, area_max, price_step=100000, area_step=10):
 <link rel="stylesheet" href="css/style.css">
 <script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Главная","item":"__BASE__/"},{"@type":"ListItem","position":2,"name":"Каталог проектов","item":"__BASE__/proekty.html"}]}</script>
 <script type="application/ld+json">{"@context":"https://schema.org","@type":"CollectionPage","name":"Каталог проектов домов из СИП-панелей","description":"Готовые проекты домов из СИП-панелей с ценами и планировками.","url":"__BASE__/proekty.html","isPartOf":{"@type":"WebSite","name":"HotWell.kz","url":"__BASE__/"}}</script>
+<script src="/assets/gtag.js" defer></script>
 </head>
 <body>
 __SPRITE__
