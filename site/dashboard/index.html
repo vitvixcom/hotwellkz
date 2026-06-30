@@ -9,49 +9,72 @@
 <link rel="stylesheet" href="/css/style.css">
 <style>
   :root { --ok:#16a34a; --warn:#d97706; --bad:#dc2626; --line:#e5e7eb; --muted:#6b7280; }
-  .dash { max-width:1180px; margin:0 auto; padding:24px 18px 64px; }
-  .dash h1 { font-size:26px; margin:0 0 4px; }
-  .dash .sub { color:var(--muted); margin:0 0 22px; font-size:14px; }
-  .cards { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-bottom:28px; }
+  .dash { max-width:1180px; margin:0 auto; padding:24px 16px 64px; }
+  .dash h1 { font-size:25px; margin:0 0 4px; }
+  .dash .sub { color:var(--muted); margin:0 0 22px; font-size:13.5px; }
+
+  .cards { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:12px; margin-bottom:26px; }
   .kpi { border:1px solid var(--line); border-radius:14px; padding:14px 16px; background:#fff; }
-  .kpi .lbl { color:var(--muted); font-size:12px; text-transform:uppercase; letter-spacing:.04em; }
-  .kpi .val { font-size:24px; font-weight:700; margin-top:4px; }
-  .sec-title { font-size:18px; font-weight:700; margin:26px 0 12px; }
-  table { width:100%; border-collapse:collapse; font-size:14px; background:#fff;
-          border:1px solid var(--line); border-radius:14px; overflow:hidden; }
-  th, td { padding:10px 12px; text-align:right; border-bottom:1px solid var(--line); white-space:nowrap; }
-  th:first-child, td:first-child { text-align:left; white-space:normal; }
-  th { background:#fafafa; cursor:pointer; user-select:none; font-size:12px; text-transform:uppercase;
-       letter-spacing:.03em; color:var(--muted); }
-  th.arrow::after { content:" ⇅"; opacity:.4; }
-  tbody tr:hover { background:#fafafa; }
-  .roas { font-weight:700; }
+  .kpi .lbl { color:var(--muted); font-size:11.5px; text-transform:uppercase; letter-spacing:.03em; }
+  .kpi .val { font-size:23px; font-weight:700; margin-top:5px; white-space:nowrap; }
+
+  .sec-title { font-size:18px; font-weight:700; margin:24px 0 12px; }
+  .sec-title small { font-weight:400; color:var(--muted); font-size:13px; }
+
+  .toolbar { margin:0 0 12px; }
+  .toolbar select { font-size:14px; padding:9px 12px; border:1px solid var(--line); border-radius:10px;
+                    background:#fff; max-width:280px; width:100%; }
+
+  /* кампании — карточки (адаптивны на любой ширине) */
+  .camps { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; }
+  .camp { border:1px solid var(--line); border-radius:14px; background:#fff; padding:14px 15px; min-width:0; }
+  .camp__top { display:flex; justify-content:space-between; align-items:flex-start; gap:10px; margin-bottom:13px; }
+  .camp__name { font-weight:700; font-size:15px; line-height:1.3; overflow-wrap:anywhere; }
+  .camp__grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:11px 12px; }
+  .m { display:flex; flex-direction:column; gap:3px; min-width:0; }
+  .m .k { color:var(--muted); font-size:10.5px; text-transform:uppercase; letter-spacing:.03em; }
+  .m .v { font-size:15px; font-weight:600; white-space:nowrap; }
   .roas.good { color:var(--ok); } .roas.mid { color:var(--warn); } .roas.bad { color:var(--bad); }
-  .pill { display:inline-block; font-size:11px; padding:2px 8px; border-radius:999px; font-weight:600; }
+  .pill { display:inline-block; font-size:11px; padding:3px 9px; border-radius:999px; font-weight:600; flex:none; }
   .pill.PAUSED { background:#fef3c7; color:#92400e; } .pill.ENABLED { background:#dcfce7; color:#166534; }
   .pill.REMOVED { background:#f3f4f6; color:#6b7280; }
+
+  /* рекомендации */
   .recs { display:grid; gap:10px; }
-  .rec { border:1px solid var(--line); border-left-width:5px; border-radius:12px; padding:12px 14px;
+  .rec { border:1px solid var(--line); border-left-width:5px; border-radius:12px; padding:13px 14px;
          display:flex; align-items:center; gap:14px; background:#fff; }
   .rec.high { border-left-color:var(--ok); } .rec.medium { border-left-color:var(--warn); }
   .rec.low { border-left-color:#9ca3af; }
-  .rec .gain { font-size:20px; font-weight:800; min-width:96px; }
+  .rec .gain { font-size:20px; font-weight:800; min-width:92px; }
   .rec .gain small { display:block; font-size:11px; font-weight:500; color:var(--muted); }
   .rec .body { flex:1; min-width:0; }
   .rec .body b { font-size:15px; } .rec .body .meta { color:var(--muted); font-size:13px; margin-top:2px; }
-  .rec .est { font-size:11px; color:var(--warn); }
-  .btn-claude { flex-shrink:0; border:none; cursor:pointer; background:#111; color:#fff; font-weight:600;
-                padding:9px 14px; border-radius:10px; font-size:13px; display:inline-flex; gap:6px; align-items:center; }
-  .btn-claude:hover { background:#000; }
+  .rec .est { color:var(--warn); }
+  .btn-claude { flex:none; border:none; cursor:pointer; background:#111; color:#fff; font-weight:600;
+                padding:10px 14px; border-radius:10px; font-size:13px; }
+  .btn-claude:active { background:#000; }
+
   .note { background:#fffbeb; border:1px solid #fde68a; border-radius:12px; padding:12px 14px;
           font-size:13px; color:#92400e; margin-bottom:22px; }
-  .toast { position:fixed; left:50%; bottom:26px; transform:translateX(-50%) translateY(20px);
+  .toast { position:fixed; left:50%; bottom:24px; transform:translateX(-50%) translateY(20px);
            background:#111; color:#fff; padding:12px 18px; border-radius:12px; font-size:14px; opacity:0;
-           transition:.25s; pointer-events:none; z-index:50; max-width:90vw; }
+           transition:.25s; pointer-events:none; z-index:50; max-width:90vw; text-align:center; }
   .toast.show { opacity:1; transform:translateX(-50%) translateY(0); }
-  @media (max-width:780px){ .cards{grid-template-columns:repeat(2,1fr);} .rec{flex-wrap:wrap;}
-    .rec .gain{min-width:auto;} .btn-claude{width:100%; justify-content:center;}
-    table{display:block; overflow-x:auto;} }
+
+  /* ---------- МОБИЛЬНАЯ ВЕРСИЯ ---------- */
+  @media (max-width:760px) {
+    .dash { padding:18px 12px 56px; }
+    .dash h1 { font-size:21px; }
+    .cards { grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; }
+    .kpi { padding:12px 13px; } .kpi .val { font-size:19px; }
+    .camps { grid-template-columns:1fr; }            /* кампании в один столбец */
+    .toolbar select { max-width:none; }
+    .rec { flex-wrap:wrap; gap:8px 14px; }
+    .rec .gain { min-width:auto; font-size:19px; order:1; }
+    .rec .body { flex-basis:100%; order:3; }
+    .btn-claude { width:100%; order:4; padding:12px; font-size:14px; }
+  }
+  @media (max-width:380px) { .camp__grid { grid-template-columns:repeat(2,minmax(0,1fr)); } }
 </style>
 </head>
 <body>
@@ -60,29 +83,25 @@
   <p class="sub" id="sub">Загрузка данных…</p>
 
   <div class="note">
-    Внутренний дашборд. Данные — статический снимок из Google Ads API (обновляется запуском
-    <code>integrations/google-ads/build_dashboard_data.py</code>). Страница закрыта от индексации,
-    но доступна по прямой ссылке — рекомендуется включить пароль на <code>/dashboard</code> в Netlify.
+    Внутренний дашборд (доступ под паролем). Снимок из Google Ads API, обновляется автоматически каждые 6 часов.
   </div>
 
   <div class="cards" id="kpis"></div>
 
-  <div class="sec-title">ROAS по кампаниям <span style="font-weight:400;color:var(--muted);font-size:13px" id="period"></span></div>
-  <table id="camps">
-    <thead><tr>
-      <th>Кампания</th>
-      <th class="arrow" data-k="cost">Расход</th>
-      <th class="arrow" data-k="conv">Конв.</th>
-      <th class="arrow" data-k="conv_value">Ценность</th>
-      <th class="arrow" data-k="roas">ROAS</th>
-      <th class="arrow" data-k="cpa">CPA</th>
-      <th class="arrow" data-k="clicks">Клики</th>
-      <th>Статус</th>
-    </tr></thead>
-    <tbody></tbody>
-  </table>
+  <div class="sec-title">ROAS по кампаниям <small id="period"></small></div>
+  <div class="toolbar">
+    <select id="sortSel" aria-label="Сортировка">
+      <option value="cost">Сортировка: Расход ↓</option>
+      <option value="roas">Сортировка: ROAS ↓</option>
+      <option value="conv">Сортировка: Конверсии ↓</option>
+      <option value="conv_value">Сортировка: Ценность ↓</option>
+      <option value="cpa">Сортировка: CPA ↓</option>
+      <option value="clicks">Сортировка: Клики ↓</option>
+    </select>
+  </div>
+  <div class="camps" id="camps"></div>
 
-  <div class="sec-title">Рекомендации <span style="font-weight:400;color:var(--muted);font-size:13px">— по сумме потенциально возвращаемых денег</span></div>
+  <div class="sec-title">Рекомендации <small>— по сумме потенциально возвращаемых денег</small></div>
   <div class="recs" id="recs"></div>
 </div>
 <div class="toast" id="toast"></div>
@@ -91,8 +110,7 @@
 const CUSTOMER_ID = "8802382037";
 const money = n => "$" + (Math.round(n*100)/100).toLocaleString("en-US",{minimumFractionDigits:0, maximumFractionDigits:2});
 const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
-
-function roasClass(r){ return r>=1 ? "good" : (r>0 ? "mid" : "bad"); }
+const roasClass = r => r>=1 ? "good" : (r>0 ? "mid" : "bad");
 
 function toast(msg){ const t=document.getElementById("toast"); t.textContent=msg; t.classList.add("show");
   clearTimeout(t._t); t._t=setTimeout(()=>t.classList.remove("show"), 2600); }
@@ -107,33 +125,35 @@ function claudePrompt(r){
     `Покажи план и выполни через Google Ads API. Если рекомендация спорная (поисковые партнёры, расширение на КМС) — сначала предупреди о минусах.`
   ].join("\n");
 }
-
 async function sendToClaude(r){
   const text = claudePrompt(r);
-  try { await navigator.clipboard.writeText(text); toast("Скопировано — вставьте в Claude Code (Cmd/Ctrl+V)"); }
+  try { await navigator.clipboard.writeText(text); toast("Скопировано — вставьте в Claude Code"); }
   catch(e){
-    const ta=document.createElement("textarea"); ta.value=text; document.body.appendChild(ta); ta.select();
-    try{ document.execCommand("copy"); toast("Скопировано — вставьте в Claude Code"); }
-    catch(_){ toast("Не удалось скопировать"); }
+    const ta=document.createElement("textarea"); ta.value=text; ta.style.position="fixed"; ta.style.opacity="0";
+    document.body.appendChild(ta); ta.focus(); ta.select();
+    try{ document.execCommand("copy"); toast("Скопировано — вставьте в Claude Code"); } catch(_){ toast("Не удалось скопировать"); }
     ta.remove();
   }
 }
 
-let DATA=null, sortKey="cost", sortDir=-1;
+let DATA=null, sortKey="cost";
 
 function renderCamps(){
-  const rows=[...DATA.campaigns].sort((a,b)=> (a[sortKey]>b[sortKey]?1:-1)*sortDir);
-  const tb=document.querySelector("#camps tbody");
-  tb.innerHTML = rows.map(c=>`<tr>
-    <td>${esc(c.name)}</td>
-    <td>${money(c.cost)}</td>
-    <td>${c.conv}</td>
-    <td>${money(c.conv_value)}</td>
-    <td class="roas ${roasClass(c.roas)}">${c.roas ? c.roas.toFixed(2)+"×" : "—"}</td>
-    <td>${c.cpa ? money(c.cpa) : "—"}</td>
-    <td>${c.clicks.toLocaleString("ru-RU")}</td>
-    <td><span class="pill ${c.status}">${c.status}</span></td>
-  </tr>`).join("");
+  const rows=[...DATA.campaigns].sort((a,b)=> b[sortKey]-a[sortKey]);
+  document.getElementById("camps").innerHTML = rows.map(c=>`<div class="camp">
+    <div class="camp__top">
+      <span class="camp__name">${esc(c.name)}</span>
+      <span class="pill ${c.status}">${c.status}</span>
+    </div>
+    <div class="camp__grid">
+      <div class="m"><span class="k">Расход</span><span class="v">${money(c.cost)}</span></div>
+      <div class="m"><span class="k">ROAS</span><span class="v roas ${roasClass(c.roas)}">${c.roas ? c.roas.toFixed(2)+"×" : "—"}</span></div>
+      <div class="m"><span class="k">Конв.</span><span class="v">${c.conv}</span></div>
+      <div class="m"><span class="k">Ценность</span><span class="v">${money(c.conv_value)}</span></div>
+      <div class="m"><span class="k">CPA</span><span class="v">${c.cpa ? money(c.cpa) : "—"}</span></div>
+      <div class="m"><span class="k">Клики</span><span class="v">${c.clicks.toLocaleString("ru-RU")}</span></div>
+    </div>
+  </div>`).join("");
 }
 
 function renderRecs(){
@@ -157,19 +177,15 @@ function renderKpis(){
     <div class="kpi"><div class="lbl">Расход · 30 дн</div><div class="val">${money(t.cost)}</div></div>
     <div class="kpi"><div class="lbl">Ценность конверсий</div><div class="val">${money(t.conv_value)}</div></div>
     <div class="kpi"><div class="lbl">ROAS аккаунта</div><div class="val roas ${roasClass(accRoas)}">${accRoas.toFixed(2)}×</div></div>
-    <div class="kpi"><div class="lbl">Потенциал рекомендаций</div><div class="val" style="color:var(--ok)">${money(t.potential_gain)}</div></div>`;
+    <div class="kpi"><div class="lbl">Потенциал рекоменд.</div><div class="val" style="color:var(--ok)">${money(t.potential_gain)}</div></div>`;
 }
 
 fetch("/dashboard-data.json?_="+Date.now()).then(r=>r.json()).then(d=>{
   DATA=d;
-  document.getElementById("sub").textContent =
-    `Аккаунт ${d.customer_id} · ${d.currency} · снимок ${d.generated_at}`;
+  document.getElementById("sub").textContent = `Аккаунт ${d.customer_id} · ${d.currency} · снимок ${d.generated_at}`;
   document.getElementById("period").textContent = "("+d.period+")";
   renderKpis(); renderCamps(); renderRecs();
-  document.querySelectorAll("#camps th[data-k]").forEach(th=>{
-    th.addEventListener("click", ()=>{ const k=th.dataset.k;
-      if(sortKey===k) sortDir*=-1; else { sortKey=k; sortDir=-1; } renderCamps(); });
-  });
+  document.getElementById("sortSel").addEventListener("change", e=>{ sortKey=e.target.value; renderCamps(); });
 }).catch(e=>{ document.getElementById("sub").textContent="Не удалось загрузить dashboard-data.json"; });
 </script>
 </body>
