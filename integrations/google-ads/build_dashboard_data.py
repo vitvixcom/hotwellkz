@@ -147,7 +147,7 @@ def main():
     costs = {c["id"]: c["cost"] for c in camps}
     recs = recommendations(names, costs)
     data = {
-        "generated_at": datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M UTC"),
+        "generated_at": datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%d %H:%M UTC"),
         "customer_id": CID,
         "currency": "USD",
         "period": "Последние 30 дней",
