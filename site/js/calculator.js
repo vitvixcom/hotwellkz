@@ -175,13 +175,20 @@ window.HW_DELIVERY = DELIVERY;
       }
     }
     // 2) карточки проектов (Топ-проекты, Построенные дома и т.п.).
-    // Площадь берём из data-area → меты «X м²» → номера модели «Б-168».
+    // Площадь: data-area → span меты «X м²» (изолированно) → номер модели «Б-168».
     function cardArea(c){
       var a=parseFloat(c.getAttribute('data-area'))||0; if(a>0) return a;
-      var t=c.textContent||'', m=t.match(/(\d+)\s*(?:м²|м2|кв\.?\s*м)/i);
-      if(m){ var v=parseInt(m[1],10); if(v>=10&&v<=2000) return v; }
-      m=t.match(/«[A-Za-zА-Яа-я]-(\d+)/);
-      if(m){ var v2=parseInt(m[1],10); if(v2>=10&&v2<=2000) return v2; }
+      var re=/(\d+)\s*(?:м²|кв\.?\s*м)/i, mm, v;
+      var sp=c.querySelectorAll('.meta span, .meta b');   // изолированно, без склейки с названием
+      for(var j=0;j<sp.length;j++){
+        mm=(sp[j].textContent||'').match(re);
+        if(mm){ v=parseInt(mm[1],10); if(v>=10&&v<=2000) return v; }
+      }
+      var h=c.querySelector('h3'), t=h?(h.textContent||''):'';   // площадь из названия
+      mm=t.match(/«[A-Za-zА-Яа-я]-(\d+)/);
+      if(mm){ v=parseInt(mm[1],10); if(v>=10&&v<=2000) return v; }
+      mm=t.match(re);
+      if(mm){ v=parseInt(mm[1],10); if(v>=10&&v<=2000) return v; }
       return 0;
     }
     var cards=document.querySelectorAll('.project');
