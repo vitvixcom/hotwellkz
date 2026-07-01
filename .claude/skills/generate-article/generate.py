@@ -24,6 +24,7 @@ SITE = os.path.join(ROOT, "site")
 BLOG_DIR = os.path.join(SITE, "blog")
 IMG_DIR = os.path.join(SITE, "assets", "blog")
 INDEX = os.path.join(SITE, "index.html")
+SITEMAP = os.path.join(SITE, "sitemap.xml")
 PUBLISHED = os.path.join(HERE, "published.json")
 CA = "/root/.ccr/ca-bundle.crt"
 
@@ -364,6 +365,25 @@ def build_page(art, img_files, date_obj):
         year=date_obj.year)
 
 
+def add_to_sitemap(slug, date_obj):
+    """Добавляет URL статьи в sitemap.xml (для быстрой индексации Google/Яндекс).
+    Идемпотентно: если URL уже есть — только обновляет lastmod."""
+    if not os.path.exists(SITEMAP):
+        return False
+    xml = open(SITEMAP, encoding="utf-8").read()
+    loc = "%s/blog/%s.html" % (BASE_URL, slug)
+    entry = "  <url><loc>%s</loc><lastmod>%s</lastmod></url>" % (loc, date_obj.isoformat())
+    if loc in xml:
+        xml = re.sub(r"  <url><loc>%s</loc><lastmod>[^<]*</lastmod></url>" % re.escape(loc),
+                     entry, xml)
+    elif "</urlset>" in xml:
+        xml = xml.replace("</urlset>", entry + "\n</urlset>")
+    else:
+        return False
+    open(SITEMAP, "w", encoding="utf-8").write(xml)
+    return True
+
+
 def add_card_to_index(art, img_files, date_obj):
     html = open(INDEX, encoding="utf-8").read()
     date_ru = "%d %s %d" % (date_obj.day, MONTHS[date_obj.month], date_obj.year)
@@ -430,9 +450,13 @@ def main():
                          "date": date_obj.isoformat(), "keywords": art.get("keywords", [])})
     json.dump(published, open(PUBLISHED, "w", encoding="utf-8"), ensure_ascii=False, indent=2)
 
+    sitemap_ok = add_to_sitemap(slug, date_obj)
+
     print("\n✓ Готово:")
     print("  • Статья:  site/blog/%s.html" % slug)
     print("  • Карточка добавлена на index.html (блог)")
+    if sitemap_ok:
+        print("  • Ссылка добавлена в site/sitemap.xml")
     if not args.no_images:
         print("  • Картинки: site/assets/blog/%s, %s, %s"
               % (img_files["main"], img_files["inline1"], img_files["inline2"]))
