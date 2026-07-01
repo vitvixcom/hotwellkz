@@ -120,10 +120,20 @@ function calc(p){
  if(p.deliveryCity){var d=findL(DELIVERY,p.deliveryCity);if(d&&d.price&&p.deliveryCity!=="Выберите город доставки")deliveryCost=trucks(a)*d.price;}
 
  var cfb=baseTotal+standardAdd;
- var fund=Math.round(cfb*COST_BREAKDOWN.foundation), kit=Math.round(cfb*COST_BREAKDOWN.houseKit), asm=Math.round(cfb*COST_BREAKDOWN.assembly);
+ // Без фундамента: строку фундамента убираем, его долю (14%) распределяем
+ // на домокомплект и сборку пропорционально (71:15) — сумма остаётся прежней.
+ var noFound=(f&&f.label==="Без фундамента")||foundAdd===0;
+ var fund,kit,asm;
+ if(noFound){
+  fund=0;
+  var kitShare=COST_BREAKDOWN.houseKit/(COST_BREAKDOWN.houseKit+COST_BREAKDOWN.assembly);
+  kit=Math.round(cfb*kitShare); asm=cfb-kit;
+ }else{
+  fund=Math.round(cfb*COST_BREAKDOWN.foundation); kit=Math.round(cfb*COST_BREAKDOWN.houseKit); asm=Math.round(cfb*COST_BREAKDOWN.assembly);
+ }
  var ap=function(x){return Math.round(x*MULT);};
  return {
-  fundamentCost:ap(fund), kitCost:ap(kit), assemblyCost:ap(asm),
+  fundamentCost:ap(fund), kitCost:ap(kit), assemblyCost:ap(asm), noFoundation:noFound,
   customWorksCost:customTotal,
   total:ap(baseTotal+standardAdd+deliveryCost)+customTotal,
   pricePerSqm:ap(Math.round(pricePerSqm)),
@@ -249,9 +259,14 @@ function recalc(){
  if(!resultBox)return;
  if(!r.total){resultBox.innerHTML='<div class="calc-empty">Введите площадь от 10 до 1500 м² — расчёт появится здесь.</div>';return;}
  var rows='';
- rows+='<div class="cr-row"><span>🏗️ Фундамент (14%)</span><b>'+fmt(r.fundamentCost)+'</b></div>';
- rows+='<div class="cr-row"><span>🏠 Домокомплект (71%)</span><b>'+fmt(r.kitCost)+'</b></div>';
- rows+='<div class="cr-row"><span>⚒️ Сборка (15%)</span><b>'+fmt(r.assemblyCost)+'</b></div>';
+ if(r.noFoundation){
+  rows+='<div class="cr-row"><span>🏠 Домокомплект (83%)</span><b>'+fmt(r.kitCost)+'</b></div>';
+  rows+='<div class="cr-row"><span>⚒️ Сборка (17%)</span><b>'+fmt(r.assemblyCost)+'</b></div>';
+ }else{
+  rows+='<div class="cr-row"><span>🏗️ Фундамент (14%)</span><b>'+fmt(r.fundamentCost)+'</b></div>';
+  rows+='<div class="cr-row"><span>🏠 Домокомплект (71%)</span><b>'+fmt(r.kitCost)+'</b></div>';
+  rows+='<div class="cr-row"><span>⚒️ Сборка (15%)</span><b>'+fmt(r.assemblyCost)+'</b></div>';
+ }
  if(r.customWorksCost>0)rows+='<div class="cr-row"><span>🛠️ Доп. работы</span><b>'+fmt(r.customWorksCost)+'</b></div>';
  if(r.deliveryCost>0)rows+='<div class="cr-row"><span>🚚 Доставка ('+inp.deliveryCity+')</span><b>'+fmt(r.deliveryCost)+'</b></div>';
  var vatLine='';
