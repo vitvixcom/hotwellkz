@@ -81,8 +81,13 @@ section[id]{scroll-margin-top:76px}
 .city-deliv b{color:var(--c-green-700)}
 .deliv-reset{flex:none;background:transparent;border:1px solid var(--c-green);color:var(--c-green);border-radius:var(--r-pill);padding:5px 12px;font:inherit;font-weight:600;font-size:.85rem;cursor:pointer;transition:.15s ease}
 .deliv-reset:hover{background:var(--c-green);color:#fff}
-.price-deliv{margin-top:2px;font-size:.78rem;font-weight:600;color:var(--c-green)}
-.pg-deliv{margin-top:6px;font-size:.92rem;font-weight:600;color:var(--c-green)}
+.price-deliv{margin-top:2px;font-size:.78rem;font-weight:600;color:var(--c-green);line-height:1.25}
+.pg-deliv{margin-top:6px;font-size:.92rem;font-weight:600;color:var(--c-green);line-height:1.3}
+@media(max-width:600px){
+  .city-deliv{flex-direction:column;align-items:stretch;gap:8px;margin-top:8px;padding:10px 12px;font-size:.9rem;line-height:1.35}
+  .deliv-reset{width:100%;padding:9px 12px;font-size:.9rem}
+  .price-deliv{font-size:.74rem}
+}
 .nav{display:flex;gap:22px;margin-left:auto}
 .nav a{font-size:var(--fs-sm);font-weight:600;color:var(--c-ink);padding:6px 2px;border-bottom:2px solid transparent}
 .nav a:hover{color:var(--c-green);border-color:var(--c-green)}
