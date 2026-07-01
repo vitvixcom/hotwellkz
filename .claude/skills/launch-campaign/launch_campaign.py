@@ -197,22 +197,27 @@ def build(spec):
         ccsvc.mutate_campaign_criteria(customer_id=CID, operations=ops)
         print(" ✓ Гео (%s) + язык + расписание + %d минус-слов" % (geo_desc, len(negs)))
 
-        # 3) исключение стран
-        kz = g(spec, "kz_geo_id")
-        countries = []
-        for r in ga.search(customer_id=CID, query="SELECT geo_target_constant.id FROM geo_target_constant WHERE geo_target_constant.target_type = 'Country' AND geo_target_constant.status = 'ENABLED'"):
-            gid = str(r.geo_target_constant.id)
-            if gid != kz: countries.append(gid)
-        neg_ops = []
-        for gid in countries:
-            op = client.get_type("CampaignCriterionOperation")
-            op.create.campaign = camp_rn; op.create.negative = True
-            op.create.location.geo_target_constant = "geoTargetConstants/%s" % gid
-            neg_ops.append(op)
-        req = client.get_type("MutateCampaignCriteriaRequest")
-        req.customer_id = CID; req.operations = neg_ops; req.partial_failure = True
-        res = ccsvc.mutate_campaign_criteria(request=req)
-        print(" ✓ Исключено стран (кроме %s):" % g(spec, "country_code"), sum(1 for x in res.results if x.resource_name))
+        # 3) исключение стран (кроме целевой). ~218 операций — тяжело для дневной квоты.
+        # Можно отключить: "exclude_other_countries": false в spec. Гео уже стоит по
+        # присутствию (PRESENCE) в целевом городе, так что исключение стран — доп. защита.
+        if g(spec, "exclude_other_countries") is not False:
+            kz = g(spec, "kz_geo_id")
+            countries = []
+            for r in ga.search(customer_id=CID, query="SELECT geo_target_constant.id FROM geo_target_constant WHERE geo_target_constant.target_type = 'Country' AND geo_target_constant.status = 'ENABLED'"):
+                gid = str(r.geo_target_constant.id)
+                if gid != kz: countries.append(gid)
+            neg_ops = []
+            for gid in countries:
+                op = client.get_type("CampaignCriterionOperation")
+                op.create.campaign = camp_rn; op.create.negative = True
+                op.create.location.geo_target_constant = "geoTargetConstants/%s" % gid
+                neg_ops.append(op)
+            req = client.get_type("MutateCampaignCriteriaRequest")
+            req.customer_id = CID; req.operations = neg_ops; req.partial_failure = True
+            res = ccsvc.mutate_campaign_criteria(request=req)
+            print(" ✓ Исключено стран (кроме %s):" % g(spec, "country_code"), sum(1 for x in res.results if x.resource_name))
+        else:
+            print(" • Исключение стран пропущено (exclude_other_countries=false); гео по присутствию в городе")
 
         # 4) прикрепить общие списки минус-слов
         want = g(spec, "shared_lists")
