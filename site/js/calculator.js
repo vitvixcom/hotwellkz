@@ -137,6 +137,42 @@ var DELIVERY=[
  {label:"Шымкент",price:330000},
  {label:"Экибастуз",price:612000}
 ];
+// ---- Контекст доставки: город с лендинга запоминается и добавляет доставку к ценам ----
+window.HW_DELIVERY = DELIVERY;
+(function(){
+  function priceFor(city){ for(var i=0;i<DELIVERY.length;i++) if(DELIVERY[i].label===city) return DELIVERY[i].price; return 0; }
+  var CITY=null;
+  try{
+    if(window.__HW_CITY__ && DELIVERY.some(function(x){return x.label===window.__HW_CITY__;}))
+      sessionStorage.setItem('hw_city', window.__HW_CITY__);
+    CITY=sessionStorage.getItem('hw_city');
+  }catch(e){}
+  var CP = CITY?priceFor(CITY):0;
+  function truckN(a){ return Math.max(1, Math.ceil((a||0)/150)); }
+  function grp(n){ return String(Math.round(n)).replace(/\B(?=(\d{3})+(?!\d))/g,' '); }
+  window.HWctx = {
+    city:function(){ return CP>0 ? CITY : null; },
+    priceFor:priceFor, truckN:truckN,
+    cost:function(a){ return CP>0 ? truckN(a)*CP : 0; },
+    clear:function(){ try{ sessionStorage.removeItem('hw_city'); }catch(e){} CITY=null; CP=0; }
+  };
+  // Страница проекта: показать цену с доставкой + пометку под ценой
+  if(CP>0){
+    var pgp=document.querySelector('.pg-price'), dr=document.getElementById('calcDrawer');
+    if(pgp && dr){
+      var area=parseFloat(dr.getAttribute('data-area')||'0');
+      var base=parseInt((pgp.textContent||'').replace(/[^0-9]/g,''),10)||0;
+      if(base>0 && area>0){
+        pgp.innerHTML='от '+grp(base+truckN(area)*CP)+' ₸';
+        if(!document.querySelector('.pg-deliv')){
+          var note=document.createElement('div'); note.className='pg-deliv';
+          note.innerHTML='🚚 включена доставка до г. '+CITY;
+          pgp.parentNode.insertBefore(note, pgp.nextSibling);
+        }
+      }
+    }
+  }
+})();
 var COST_BREAKDOWN={foundation:0.14,houseKit:0.71,assembly:0.15};
 var AREA_LIMITS={min:10,max:1500};
 var MULT=1.1;
@@ -243,6 +279,8 @@ fill(iCeil,CEILING,function(o){return o.label;},function(o){return o.label;},CEI
 fill(iShape,SHAPE,function(o){return o.label;},function(o){return o.label;},SHAPE[0].label);
 fill(iAdd,ADD_WORKS,function(o){return o.label;},function(o){return o.label;},ADD_WORKS[0].label);
 fill(iDelivery,DELIVERY,function(o){return o.label;},function(o){return o.label;},DELIVERY[0].label);
+// если пришли с городской страницы — подставляем этот город в доставку
+try{ var _hc=window.HWctx&&window.HWctx.city&&window.HWctx.city(); if(_hc) iDelivery.value=_hc; }catch(e){}
 
 var DEFAULT_ROOF="2-скатная (строп. сист. + металлочерепица)"; // крыша по умолчанию
 function buildRoof(){
