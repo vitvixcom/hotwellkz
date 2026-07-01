@@ -40,8 +40,8 @@
       </div>
       <p class="catmode__hint" id="catModeHint">Готовые проекты с планировками — выберите свой и рассчитайте стоимость.</p>
       <div class="chips cat-typechips" id="typeChips" role="tablist" aria-label="Раздел каталога">
-        <button class="chip chip--on" data-group="" role="tab">Все</button>
-        <button class="chip" data-group="Проекты" role="tab">Дома</button>
+        <button class="chip" data-group="" role="tab">Все</button>
+        <button class="chip chip--on" data-group="Проекты" role="tab">Дома</button>
         <button class="chip" data-group="Домокомплекты" role="tab">Домокомплекты</button>
         <button class="chip" data-group="Бани" role="tab">Бани</button>
         <button class="chip" data-group="Разное" role="tab">Разное</button>
@@ -299,6 +299,7 @@ document.addEventListener('keydown', function(e){ if(e.key==='Escape') closeF();
       var h=$('catModeHint'); if(h) h.textContent=hints[mode]||'';
       var tc=$('typeChips'); if(tc) tc.style.display=(mode==='built')?'none':'';
       FIELDS.forEach(function(id){$(id).value='';}); priceR.reset(); areaR.reset();
+      if(mode!=='built') $('fGroup').value='Проекты';  // в «Проекты домов» дефолт — раздел «Дома»
       apply();
       var a=document.querySelector('.catalog-sticky'); if(a) a.scrollIntoView({block:'start'});
     });
@@ -334,16 +335,9 @@ fetch('projects.json').then(function(r){return r.json()}).then(function(d){
   $('fSort').value = sortVal;
   var pg=null; try{ pg=new URLSearchParams(location.search).get('group'); }catch(e){}
   if(pg){ $('fGroup').value=pg; apply(); return; }
-  // SSR отрисован в порядке price-asc (дефолт). Если сохранённая сортировка другая —
-  // перестраиваем; иначе оставляем SSR-карточки, только синхронизируем счётчики.
-  if(sortVal!=='price-asc'){ apply(); return; }
-  view=all.filter(function(p){return p.group!=='Построенные объекты';})
-          .sort(function(a,b){ var ap=a.price||Infinity, bp=b.price||Infinity; return ap-bp || a.name.localeCompare(b.name); });
-  shown=$('catGrid').children.length;
-  $('catCount').textContent='Найдено: '+view.length;
-  $('applyCount').textContent='('+view.length+')';
-  $('catMore').hidden = shown>=view.length;
-  autoFill();
+  // По умолчанию показываем раздел «Дома» (проекты домов) — без домокомплектов/бань/разного.
+  $('fGroup').value='Проекты';
+  apply();
 });
 </script>
 </body>
