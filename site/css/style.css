@@ -75,6 +75,14 @@ ul{margin:0;padding:0;list-style:none}
 @media(max-width:1080px){.header-nav{display:none}}
 /* Якоря не под sticky-шапкой */
 section[id]{scroll-margin-top:76px}
+/* Контекст доставки: баннер в каталоге + пометки цен */
+.city-deliv{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-top:10px;padding:9px 14px;background:var(--c-badge);border:1px solid var(--c-green);border-radius:var(--r-md);color:var(--c-green-700);font-weight:600;font-size:.95rem}
+.city-deliv[hidden]{display:none}
+.city-deliv b{color:var(--c-green-700)}
+.deliv-reset{flex:none;background:transparent;border:1px solid var(--c-green);color:var(--c-green);border-radius:var(--r-pill);padding:5px 12px;font:inherit;font-weight:600;font-size:.85rem;cursor:pointer;transition:.15s ease}
+.deliv-reset:hover{background:var(--c-green);color:#fff}
+.price-deliv{margin-top:2px;font-size:.78rem;font-weight:600;color:var(--c-green)}
+.pg-deliv{margin-top:6px;font-size:.92rem;font-weight:600;color:var(--c-green)}
 .nav{display:flex;gap:22px;margin-left:auto}
 .nav a{font-size:var(--fs-sm);font-weight:600;color:var(--c-ink);padding:6px 2px;border-bottom:2px solid transparent}
 .nav a:hover{color:var(--c-green);border-color:var(--c-green)}
