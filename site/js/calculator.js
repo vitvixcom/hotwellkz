@@ -174,13 +174,23 @@ window.HW_DELIVERY = DELIVERY;
         }
       }
     }
-    // 2) карточки проектов (Топ-проекты и т.п.) с data-area
-    var cards=document.querySelectorAll('.project[data-area]');
+    // 2) карточки проектов (Топ-проекты, Построенные дома и т.п.).
+    // Площадь берём из data-area → меты «X м²» → номера модели «Б-168».
+    function cardArea(c){
+      var a=parseFloat(c.getAttribute('data-area'))||0; if(a>0) return a;
+      var t=c.textContent||'', m=t.match(/(\d+)\s*(?:м²|м2|кв\.?\s*м)/i);
+      if(m){ var v=parseInt(m[1],10); if(v>=10&&v<=2000) return v; }
+      m=t.match(/«[A-Za-zА-Яа-я]-(\d+)/);
+      if(m){ var v2=parseInt(m[1],10); if(v2>=10&&v2<=2000) return v2; }
+      return 0;
+    }
+    var cards=document.querySelectorAll('.project');
     for(var i=0;i<cards.length;i++){
-      var c=cards[i]; if(c.getAttribute('data-hwd')) continue;
-      var a=parseFloat(c.getAttribute('data-area'))||0;
-      var pr=c.querySelector('.price'); if(!pr || a<=0) continue;
+      var c=cards[i];
+      if(c.getAttribute('data-hwd') || (c.closest && c.closest('#catGrid'))) continue;
+      var pr=c.querySelector('.price'); if(!pr) continue;
       var b=parseInt((pr.textContent||'').replace(/[^0-9]/g,''),10)||0; if(b<=0) continue;
+      var a=cardArea(c); if(a<=0) continue;
       pr.innerHTML='от '+grp(b+truckN(a)*CP)+' ₸';
       c.setAttribute('data-hwd','1');
       if(!c.querySelector('.price-deliv')){
