@@ -247,6 +247,8 @@ body.calc-open{overflow:hidden}
 .lb-next{right:14px;top:50%;transform:translateY(-50%)}
 .lb-count{position:absolute;top:22px;left:20px;color:#fff;font-size:.9rem;opacity:.85}
 .lb-cap{position:absolute;bottom:18px;left:0;right:0;text-align:center;color:#fff;font-size:.95rem;opacity:.9;padding:0 60px}
+/* Пока открыт лайтбокс галереи — прячем плавающую кнопку калькулятора (иначе она перекрывает фото) */
+body:has(.lightbox.open) .calc-fab{display:none}
 @media(max-width:620px){.lb-prev{left:6px}
 .lb-next{right:6px}
 .lb-btn{width:42px;height:42px}
