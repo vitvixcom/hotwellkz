@@ -66,6 +66,15 @@ ul{margin:0;padding:0;list-style:none}
 .header-phone:hover{color:var(--c-green)}
 .header-phone svg{color:var(--c-green);flex:none;width:18px;height:18px}
 .header .logo svg{width:24px;height:24px}
+/* Десктоп-меню в шапке */
+.header-nav{display:flex;align-items:center;gap:2px;margin-left:22px}
+.header-nav a{padding:8px 12px;border-radius:var(--r-pill);font-weight:700;font-size:.95rem;color:var(--c-ink);white-space:nowrap;transition:background .15s ease,color .15s ease}
+.header-nav a:hover{background:var(--c-badge);color:var(--c-green)}
+.header-nav a.header-nav__cta{background:var(--c-green);color:#fff;margin-left:6px}
+.header-nav a.header-nav__cta:hover{background:var(--c-green-600);color:#fff}
+@media(max-width:1080px){.header-nav{display:none}}
+/* Якоря не под sticky-шапкой */
+section[id]{scroll-margin-top:76px}
 .nav{display:flex;gap:22px;margin-left:auto}
 .nav a{font-size:var(--fs-sm);font-weight:600;color:var(--c-ink);padding:6px 2px;border-bottom:2px solid transparent}
 .nav a:hover{color:var(--c-green);border-color:var(--c-green)}
