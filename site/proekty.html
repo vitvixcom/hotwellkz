@@ -39,6 +39,13 @@
         <button class="catmode__btn" data-mode="built" role="tab" aria-selected="false">Построенные дома</button>
       </div>
       <p class="catmode__hint" id="catModeHint">Готовые проекты с планировками — выберите свой и рассчитайте стоимость.</p>
+      <div class="chips cat-typechips" id="typeChips" role="tablist" aria-label="Раздел каталога">
+        <button class="chip chip--on" data-group="" role="tab">Все</button>
+        <button class="chip" data-group="Проекты" role="tab">Дома</button>
+        <button class="chip" data-group="Домокомплекты" role="tab">Домокомплекты</button>
+        <button class="chip" data-group="Бани" role="tab">Бани</button>
+        <button class="chip" data-group="Разное" role="tab">Разное</button>
+      </div>
       <div class="cat-search">
         <svg class="cat-search__ic" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.5" y2="16.5"/></svg>
         <input type="search" id="catSearch" placeholder="Поиск по названию — например, С-12, А-49" autocomplete="off" aria-label="Поиск проекта по названию">
@@ -201,16 +208,17 @@ function initRange(loId, hiId, fillId, minId, maxId){
 }
 var priceR=initRange('fPriceMin','fPriceMax','priceFill','priceMinVal','priceMaxVal');
 var areaR=initRange('fAreaMin','fAreaMax','areaFill','areaMinVal','areaMaxVal');
-// быстрые чипсы (этажность / площадь)
+// быстрые чипсы (этажность / площадь) — только внутри #quickChips
 function chipActive(){
-  document.querySelectorAll('.chip').forEach(function(c){
+  document.querySelectorAll('#quickChips .chip').forEach(function(c){
     var k=c.getAttribute('data-k'), v=c.getAttribute('data-v'), on=false;
     if(k==='floors') on=$('fFloors').value===v;
     if(k==='area'){ var p=v.split('-'); on=$('fAreaMin').value===p[0] && $('fAreaMax').value===p[1]; }
     c.classList.toggle('chip--on', on);
   });
+  typeChipsSync();
 }
-document.querySelectorAll('.chip').forEach(function(c){
+document.querySelectorAll('#quickChips .chip').forEach(function(c){
   c.addEventListener('click', function(){
     var k=c.getAttribute('data-k'), v=c.getAttribute('data-v');
     if(k==='floors'){ $('fFloors').value = ($('fFloors').value===v ? '' : v); }
@@ -218,6 +226,20 @@ document.querySelectorAll('.chip').forEach(function(c){
       if(lo.value===p[0] && hi.value===p[1]){ lo.value=lo.min; hi.value=hi.max; }
       else { lo.value=p[0]; hi.value=p[1]; }
       areaR.draw(); }
+    apply();
+  });
+});
+// чипсы «Раздел» (Все / Дома / Домокомплекты / Бани / Разное) — управляют fGroup
+function typeChipsSync(){
+  var g=$('fGroup').value||'';
+  document.querySelectorAll('#typeChips .chip').forEach(function(c){
+    var on=(c.getAttribute('data-group')||'')===g;
+    c.classList.toggle('chip--on', on); c.setAttribute('aria-selected', on?'true':'false');
+  });
+}
+document.querySelectorAll('#typeChips .chip').forEach(function(c){
+  c.addEventListener('click', function(){
+    $('fGroup').value = c.getAttribute('data-group')||'';
     apply();
   });
 });
@@ -275,6 +297,7 @@ document.addEventListener('keydown', function(e){ if(e.key==='Escape') closeF();
       btn.classList.add('is-on'); btn.setAttribute('aria-selected','true');
       mode=btn.getAttribute('data-mode');
       var h=$('catModeHint'); if(h) h.textContent=hints[mode]||'';
+      var tc=$('typeChips'); if(tc) tc.style.display=(mode==='built')?'none':'';
       FIELDS.forEach(function(id){$(id).value='';}); priceR.reset(); areaR.reset();
       apply();
       var a=document.querySelector('.catalog-sticky'); if(a) a.scrollIntoView({block:'start'});
