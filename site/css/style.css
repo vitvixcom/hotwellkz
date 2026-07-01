@@ -73,8 +73,9 @@ ul{margin:0;padding:0;list-style:none}
 .header-nav a.header-nav__cta{background:var(--c-green);color:#fff;margin-left:6px}
 .header-nav a.header-nav__cta:hover{background:var(--c-green-600);color:#fff}
 @media(max-width:1080px){
-  .header-nav{display:none;position:absolute;top:calc(100% + 1px);left:0;right:0;flex-direction:column;align-items:stretch;gap:0;margin:0;padding:6px 16px 14px;background:var(--c-bg);border-bottom:1px solid var(--c-line);box-shadow:var(--sh-md);z-index:60}
+  .header-nav{display:none;position:absolute;top:calc(100% + 1px);left:0;right:0;flex-direction:column;align-items:stretch;gap:0;margin:0;padding:6px 16px 14px;background:var(--c-bg);border-bottom:1px solid var(--c-line);box-shadow:var(--sh-md);z-index:60;max-height:85vh;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain}
   .header-nav.is-open{display:flex}
+  body.nav-open{overflow:hidden}
   .header-nav a{padding:13px 6px;border-radius:0;border-bottom:1px solid var(--c-line);font-size:1rem;white-space:normal}
   .header-nav a:hover{background:transparent;color:var(--c-green)}
   .header-nav a.header-nav__cta{margin:10px 0 0;border-bottom:0;border-radius:var(--r-pill);text-align:center;padding:12px}
@@ -110,8 +111,10 @@ section[id]{scroll-margin-top:76px}
 .nav a:last-child{border-bottom:0}
 }
 @media(max-width:430px){.logo{font-size:1.08rem}
-.header-phone{font-size:.92rem;gap:5px}
-.header .container{gap:16px}
+/* Телефон дублируется нижней панелью «Звонок» — прячем, чтобы бургер не уходил за край экрана */
+.header-phone{display:none}
+.header .container{gap:14px}
+.burger{margin-left:auto}
 }
 .hero{padding-block:clamp(20px,4vw,64px)}
 .hero .container{display:grid;grid-template-columns:1.05fr .95fr;gap:40px;align-items:center}

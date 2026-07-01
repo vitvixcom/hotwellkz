@@ -439,9 +439,10 @@ recalc();
    раскрывает .header-nav выпадающим списком на узких экранах. */
 (function(){
   function initBurger(){
+    var header=document.querySelector('.header');
     var container=document.querySelector('.header .container');
     var nav=document.querySelector('.header-nav');
-    if(!container||!nav) return;
+    if(!header||!container||!nav) return;
     if(container.querySelector('.burger')) return; // уже добавлен
     var b=document.createElement('button');
     b.type='button';
@@ -450,18 +451,43 @@ recalc();
     b.setAttribute('aria-expanded','false');
     b.innerHTML='☰';
     container.appendChild(b);
-    function close(){nav.classList.remove('is-open');b.setAttribute('aria-expanded','false');b.innerHTML='☰';}
+
+    // Панель приклеена к шапке (position:absolute) и следует за ней сама.
+    // Ограничиваем высоту экраном, чтобы длинное меню не уходило за край —
+    // внутри включается прокрутка.
+    function place(){
+      var top=Math.max(0, Math.round(nav.getBoundingClientRect().top));
+      nav.style.maxHeight=(window.innerHeight-top-8)+'px';
+    }
+    function open(){
+      nav.classList.add('is-open');
+      document.body.classList.add('nav-open');
+      b.setAttribute('aria-expanded','true');
+      b.innerHTML='✕';
+      place();
+    }
+    function close(){
+      nav.classList.remove('is-open');
+      document.body.classList.remove('nav-open');
+      b.setAttribute('aria-expanded','false');
+      b.innerHTML='☰';
+    }
+    function isOpen(){return nav.classList.contains('is-open');}
+
     b.addEventListener('click',function(e){
       e.stopPropagation();
-      var open=nav.classList.toggle('is-open');
-      b.setAttribute('aria-expanded',open?'true':'false');
-      b.innerHTML=open?'✕':'☰';
+      isOpen()?close():open();
     });
     nav.querySelectorAll('a').forEach(function(a){a.addEventListener('click',close);});
     document.addEventListener('click',function(ev){
-      if(nav.classList.contains('is-open')&&!nav.contains(ev.target)&&ev.target!==b) close();
+      if(isOpen()&&!nav.contains(ev.target)&&ev.target!==b) close();
     });
-    window.addEventListener('keydown',function(ev){if(ev.key==='Escape') close();});
+    window.addEventListener('keydown',function(ev){if(ev.key==='Escape'&&isOpen()) close();});
+    // Перепозиционируем при повороте/ресайзе; на десктопе просто закрываем.
+    window.addEventListener('resize',function(){
+      if(!isOpen()) return;
+      if(window.innerWidth>1080) close(); else place();
+    });
   }
   if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',initBurger);
   else initBurger();
