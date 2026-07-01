@@ -250,11 +250,18 @@ document.querySelectorAll('#typeChips .chip').forEach(function(c){
   });
 });
 $('catMore').addEventListener('click', render);
-// бесконечная подгрузка вместо кнопки (если поддерживается)
-(function(){ var s=$('catSentinel'), more=$('catMore');
-  if(!s || !('IntersectionObserver' in window)) return;
-  if(more) more.style.display='none';
-  new IntersectionObserver(function(es){ if(es[0].isIntersecting) autoFill(); }, {rootMargin:'700px 0px'}).observe(s);
+// Бесконечная подгрузка: IntersectionObserver + подстраховка по scroll/resize.
+// Кнопку «Показать ещё» НЕ прячем — остаётся запасным способом, если авто-подгрузка
+// почему-то не сработала (управляется через render(): показывается, пока есть ещё).
+(function(){ var s=$('catSentinel');
+  if(!s) return;
+  if('IntersectionObserver' in window){
+    new IntersectionObserver(function(es){ if(es[0].isIntersecting) autoFill(); }, {rootMargin:'900px 0px'}).observe(s);
+  }
+  var tick=false;
+  function onScroll(){ if(tick) return; tick=true; requestAnimationFrame(function(){ tick=false; autoFill(); }); }
+  window.addEventListener('scroll', onScroll, {passive:true});
+  window.addEventListener('resize', onScroll, {passive:true});
 })();
 $('catReset').addEventListener('click', function(){
   FIELDS.forEach(function(id){$(id).value='';}); var cs=$('catSearch'); if(cs)cs.value='';
