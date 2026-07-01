@@ -433,3 +433,36 @@ buildFloors();buildRoof();buildPartition();
 customList.style.display='none';addBtn.style.display='none';
 recalc();
 })();
+
+/* ---------- Мобильное меню (бургер) ----------
+   Общий для всех страниц: кнопка добавляется в шапку скриптом,
+   раскрывает .header-nav выпадающим списком на узких экранах. */
+(function(){
+  function initBurger(){
+    var container=document.querySelector('.header .container');
+    var nav=document.querySelector('.header-nav');
+    if(!container||!nav) return;
+    if(container.querySelector('.burger')) return; // уже добавлен
+    var b=document.createElement('button');
+    b.type='button';
+    b.className='burger';
+    b.setAttribute('aria-label','Меню');
+    b.setAttribute('aria-expanded','false');
+    b.innerHTML='☰';
+    container.appendChild(b);
+    function close(){nav.classList.remove('is-open');b.setAttribute('aria-expanded','false');b.innerHTML='☰';}
+    b.addEventListener('click',function(e){
+      e.stopPropagation();
+      var open=nav.classList.toggle('is-open');
+      b.setAttribute('aria-expanded',open?'true':'false');
+      b.innerHTML=open?'✕':'☰';
+    });
+    nav.querySelectorAll('a').forEach(function(a){a.addEventListener('click',close);});
+    document.addEventListener('click',function(ev){
+      if(nav.classList.contains('is-open')&&!nav.contains(ev.target)&&ev.target!==b) close();
+    });
+    window.addEventListener('keydown',function(ev){if(ev.key==='Escape') close();});
+  }
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',initBurger);
+  else initBurger();
+})();
