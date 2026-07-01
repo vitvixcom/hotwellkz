@@ -441,8 +441,8 @@ html,body{max-width:100%;overflow-x:clip}
 .chips{display:flex;gap:8px;overflow-x:auto;margin-top:10px;padding-bottom:4px;scrollbar-width:none}
 .chips::-webkit-scrollbar{display:none}
 .chip{flex:none;white-space:nowrap;padding:8px 14px;border:1px solid var(--c-line);background:var(--c-surface);color:var(--c-ink);border-radius:var(--r-pill);font:inherit;font-size:.9rem;font-weight:600;cursor:pointer;transition:.15s ease}
-.chip:hover{border-color:var(--c-green);color:var(--c-green)}
-.chip--on{background:var(--c-green);border-color:var(--c-green);color:#fff}
+@media (hover:hover){.chip:hover{border-color:var(--c-green);color:var(--c-green)}}
+.chip--on,.chip--on:hover{background:var(--c-green);border-color:var(--c-green);color:#fff}
 .catalog-layout{display:grid;grid-template-columns:270px 1fr;gap:28px;align-items:start}
 .filters-panel{background:var(--c-surface);border:1px solid var(--c-line);border-radius:var(--r-md);box-shadow:var(--sh-sm);display:flex;flex-direction:column}
 .filters-panel__head{display:flex;align-items:center;justify-content:space-between;padding:16px 18px;border-bottom:1px solid var(--c-line)}
