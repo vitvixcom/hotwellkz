@@ -156,8 +156,11 @@ window.HW_DELIVERY = DELIVERY;
     cost:function(a){ return CP>0 ? truckN(a)*CP : 0; },
     clear:function(){ try{ sessionStorage.removeItem('hw_city'); }catch(e){} CITY=null; CP=0; }
   };
-  // Страница проекта: показать цену с доставкой + пометку под ценой
-  if(CP>0){
+  // Добавляем доставку к статичным ценам (карточки проектов на главной/лендингах,
+  // и крупная цена на странице проекта) + пометку. Только при активном городе.
+  function applyStatic(){
+    if(CP<=0) return;
+    // 1) страница проекта — крупная цена
     var pgp=document.querySelector('.pg-price'), dr=document.getElementById('calcDrawer');
     if(pgp && dr){
       var area=parseFloat(dr.getAttribute('data-area')||'0');
@@ -171,7 +174,24 @@ window.HW_DELIVERY = DELIVERY;
         }
       }
     }
+    // 2) карточки проектов (Топ-проекты и т.п.) с data-area
+    var cards=document.querySelectorAll('.project[data-area]');
+    for(var i=0;i<cards.length;i++){
+      var c=cards[i]; if(c.getAttribute('data-hwd')) continue;
+      var a=parseFloat(c.getAttribute('data-area'))||0;
+      var pr=c.querySelector('.price'); if(!pr || a<=0) continue;
+      var b=parseInt((pr.textContent||'').replace(/[^0-9]/g,''),10)||0; if(b<=0) continue;
+      pr.innerHTML='от '+grp(b+truckN(a)*CP)+' ₸';
+      c.setAttribute('data-hwd','1');
+      if(!c.querySelector('.price-deliv')){
+        var nn=document.createElement('div'); nn.className='price-deliv';
+        nn.textContent='🚚 с доставкой до г. '+CITY;
+        pr.parentNode.insertBefore(nn, pr.nextSibling);
+      }
+    }
   }
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded', applyStatic);
+  else applyStatic();
 })();
 var COST_BREAKDOWN={foundation:0.14,houseKit:0.71,assembly:0.15};
 var AREA_LIMITS={min:10,max:1500};
