@@ -86,3 +86,9 @@ path1=город, path2=услуга (≤15).
 - Ничего не включаем — запуск (PAUSED→ENABLED) делает пользователь.
 - Отключить бизнес-имя/логотип для конкретной кампании — `"business_identity": null` в spec.
 - Если бюджет < $20/день — предупреди, что Smart Bidding учится медленно.
+- **Обрыв на квоте API** (`RESOURCE_EXHAUSTED` / «Retry in N seconds»): дневной лимит
+  операций аккаунта. Ядро кампании (бюджет→кампания→гео→ключ→20 RSA) обычно успевает,
+  падает хвост (ассеты/логотип/аудитория). НЕ перезапускай `build` (создаст дубль) —
+  добавь в spec `campaign_id` и `ad_group_id` из вывода и после сброса квоты запусти
+  `python .claude/skills/launch-campaign/launch_campaign.py finish spec.json` (можно
+  и через env `CAMPAIGN_ID`/`AD_GROUP_ID`). Режим `finish` доливает только хвост.
