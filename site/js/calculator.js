@@ -461,14 +461,12 @@ recalc();
     }
     function open(){
       nav.classList.add('is-open');
-      document.body.classList.add('nav-open');
       b.setAttribute('aria-expanded','true');
       b.innerHTML='✕';
       place();
     }
     function close(){
       nav.classList.remove('is-open');
-      document.body.classList.remove('nav-open');
       b.setAttribute('aria-expanded','false');
       b.innerHTML='☰';
     }
