@@ -1,11 +1,14 @@
-/* Геоподсказка города — только на общенациональных страницах (kazakhstan-*).
-   Первый визит: по IP определяем ближайший из наших городов и предлагаем перейти
-   на его страницу. Повторный визит: тонкая плашка «Ваш город». Выбор сохраняется.
-   CSS инъектируется здесь же, чтобы не трогать общий style.css. */
+/* Выбор города HotWell.kz.
+   1) Кнопка «Город» в верхней панели (topbar) — на всех страницах: открывает
+      окно с поиском и списком городов, быстрый переход на другой город.
+   2) На общенациональных страницах (kazakhstan-*) — авто-подсказка по IP при
+      первом визите и тонкая плашка «Ваш город» при повторном.
+   CSS пикера инъектируется здесь же (кнопка использует готовые .citysel__btn). */
 (function () {
   "use strict";
+  if (window.__hwGeoInit) return; window.__hwGeoInit = true;
   var page = (location.pathname.split('/').pop() || '').toLowerCase();
-  if (page.indexOf('kazakhstan-') !== 0) return; // только национальные страницы
+  var IS_KZ = page.indexOf('kazakhstan-') === 0;
 
   var RULES = [
     ['sendvich', ['sendvich', 'sandvich']], ['sip', ['sip']], ['karkas', ['karkas']],
@@ -154,7 +157,8 @@
     render('');
     var inp = box.querySelector('.hw-geo__search');
     inp.oninput = function () { render(inp.value); };
-    box.querySelector('.hw-geo__x').onclick = function () { dismiss(wrap); };
+    box.querySelector('.hw-geo__x').onclick = function () { close(wrap); };
+    wrap.addEventListener('click', function (e) { if (e.target === wrap) close(wrap); });
     fitToViewport(wrap);
     setTimeout(function () { try { inp.focus(); } catch (e) {} }, 60);
   }
@@ -206,6 +210,16 @@
     });
   }
 
-  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', function () { setTimeout(start, 1200); });
-  else setTimeout(start, 1200);
+  // Кнопка «Город» в topbar — на всех страницах: показывает текущий город и открывает пикер.
+  function initBtn() {
+    var btn = document.getElementById('hwCityBtn');
+    if (!btn) return;
+    var cur = null; try { cur = window.__HW_CITY__ || localStorage.getItem(KEY); } catch (e) {}
+    if (cur) { var n = btn.querySelector('.hwCityName'); if (n) n.textContent = cur; }
+    btn.addEventListener('click', function (e) { e.preventDefault(); e.stopPropagation(); openPicker(); });
+  }
+  function ready(fn) { if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', fn); else fn(); }
+
+  ready(initBtn);
+  if (IS_KZ) ready(function () { setTimeout(start, 1200); }); // авто-подсказка только на нац-страницах
 })();
