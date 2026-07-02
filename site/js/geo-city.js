@@ -57,8 +57,9 @@
       ".hw-geo.is-open{opacity:1}" +
       ".hw-geo__box{position:relative;width:100%;max-width:460px;background:#fff;border-radius:18px 18px 0 0;box-shadow:0 -8px 40px rgba(20,22,16,.28);padding:22px 20px 20px;transform:translateY(18px);transition:transform .24s cubic-bezier(.2,.8,.2,1);display:flex;gap:14px}" +
       ".hw-geo.is-open .hw-geo__box{transform:none}" +
-      ".hw-geo__box--pick{flex-direction:column;gap:0;align-items:stretch}" +
-      ".hw-geo__box--pick .hw-geo__list{max-height:min(50vh,440px)}" +
+      ".hw-geo__box--pick{flex-direction:column;gap:0;align-items:stretch;max-height:100%;box-sizing:border-box}" +
+      ".hw-geo__box--pick .hw-geo__list{flex:1 1 auto;min-height:0;max-height:none}" +
+      ".hw-geo__search{flex:none}.hw-geo__t--pick{flex:none}" +
       "@media(min-width:560px){.hw-geo{align-items:center}.hw-geo__box{border-radius:18px}}" +
       ".hw-geo__x{position:absolute;top:10px;right:12px;background:none;border:0;font-size:1.7rem;line-height:1;color:#9a9a90;cursor:pointer;padding:2px 8px;border-radius:8px}" +
       ".hw-geo__x:hover{background:#f0efe9;color:#333}" +
@@ -87,7 +88,25 @@
     document.head.appendChild(s);
   }
 
-  function close(wrap) { if (!wrap) return; wrap.classList.remove('is-open'); setTimeout(function () { if (wrap.parentNode) wrap.parentNode.removeChild(wrap); }, 220); }
+  // Подгонка оверлея под ВИДИМУЮ область (над экранной клавиатурой на мобильном),
+  // чтобы отфильтрованный город не прятался за клавиатурой.
+  var _vvApply = null;
+  function fitToViewport(wrap) {
+    var vv = window.visualViewport;
+    if (!vv) return;
+    function apply() { wrap.style.top = vv.offsetTop + 'px'; wrap.style.height = vv.height + 'px'; wrap.style.bottom = 'auto'; }
+    apply(); _vvApply = apply;
+    vv.addEventListener('resize', apply); vv.addEventListener('scroll', apply);
+  }
+  function detachViewportFit() {
+    if (_vvApply && window.visualViewport) {
+      window.visualViewport.removeEventListener('resize', _vvApply);
+      window.visualViewport.removeEventListener('scroll', _vvApply);
+    }
+    _vvApply = null;
+  }
+
+  function close(wrap) { detachViewportFit(); if (!wrap) return; wrap.classList.remove('is-open'); setTimeout(function () { if (wrap.parentNode) wrap.parentNode.removeChild(wrap); }, 220); }
   function closeAll() { close(document.getElementById('hwGeo')); }
   function dismiss(wrap) { try { sessionStorage.setItem(DISMISS, '1'); } catch (e) {} close(wrap); }
 
@@ -136,6 +155,7 @@
     var inp = box.querySelector('.hw-geo__search');
     inp.oninput = function () { render(inp.value); };
     box.querySelector('.hw-geo__x').onclick = function () { dismiss(wrap); };
+    fitToViewport(wrap);
     setTimeout(function () { try { inp.focus(); } catch (e) {} }, 60);
   }
 
