@@ -72,7 +72,15 @@ ul{margin:0;padding:0;list-style:none}
 .header-nav a:hover{background:var(--c-badge);color:var(--c-green)}
 .header-nav a.header-nav__cta{background:var(--c-green);color:#fff;margin-left:6px}
 .header-nav a.header-nav__cta:hover{background:var(--c-green-600);color:#fff}
-@media(max-width:1080px){.header-nav{display:none}}
+@media(max-width:1080px){
+  .header-nav{display:none;position:absolute;top:calc(100% + 1px);left:0;right:0;flex-direction:column;align-items:stretch;gap:0;margin:0;padding:6px 16px 14px;background:var(--c-bg);border-bottom:1px solid var(--c-line);box-shadow:var(--sh-md);z-index:60;max-height:85vh;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain}
+  .header-nav.is-open{display:flex}
+  .header-nav a{padding:13px 6px;border-radius:0;border-bottom:1px solid var(--c-line);font-size:1rem;white-space:normal}
+  .header-nav a:hover{background:transparent;color:var(--c-green)}
+  .header-nav a.header-nav__cta{margin:10px 0 0;border-bottom:0;border-radius:var(--r-pill);text-align:center;padding:12px}
+  .header-nav a.header-nav__cta:hover{color:#fff}
+  .burger{display:inline-flex;align-items:center;justify-content:center}
+}
 /* Якоря не под sticky-шапкой */
 section[id]{scroll-margin-top:76px}
 /* Контекст доставки: баннер в каталоге + пометки цен */
@@ -101,10 +109,18 @@ section[id]{scroll-margin-top:76px}
 .nav a{padding:13px 0;border-bottom:1px solid var(--c-line)}
 .nav a:last-child{border-bottom:0}
 }
-@media(max-width:430px){.logo{font-size:1.08rem}
-.header-phone{font-size:.92rem;gap:5px}
-.header .container{gap:16px}
+@media(max-width:430px){.logo{font-size:.98rem}
+/* Компактная шапка: логотип + локация + видимый телефон + бургер помещаются в один ряд */
+.header .container{gap:8px;padding-left:11px;padding-right:11px}
+.header .logo svg{width:21px;height:21px}
+.header-phone{font-size:.88rem;gap:4px}
+.header-phone svg{width:15px;height:15px}
+.header-actions{gap:7px}
+.header-loc__btn{padding:8px}
+.burger{margin-left:0;padding:4px 5px}
 }
+/* На очень узких экранах прячем «Маршрут», чтобы телефон и меню точно поместились */
+@media(max-width:345px){.header-loc{display:none}}
 .hero{padding-block:clamp(20px,4vw,64px)}
 .hero .container{display:grid;grid-template-columns:1.05fr .95fr;gap:40px;align-items:center}
 .hero h1{font-size:var(--fs-h1);text-transform:uppercase}
@@ -230,6 +246,8 @@ body.calc-open{overflow:hidden}
 .lb-next{right:14px;top:50%;transform:translateY(-50%)}
 .lb-count{position:absolute;top:22px;left:20px;color:#fff;font-size:.9rem;opacity:.85}
 .lb-cap{position:absolute;bottom:18px;left:0;right:0;text-align:center;color:#fff;font-size:.95rem;opacity:.9;padding:0 60px}
+/* Пока открыт лайтбокс галереи — прячем плавающую кнопку калькулятора (иначе она перекрывает фото) */
+body:has(.lightbox.open) .calc-fab{display:none}
 @media(max-width:620px){.lb-prev{left:6px}
 .lb-next{right:6px}
 .lb-btn{width:42px;height:42px}

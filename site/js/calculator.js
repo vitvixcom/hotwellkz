@@ -433,3 +433,60 @@ buildFloors();buildRoof();buildPartition();
 customList.style.display='none';addBtn.style.display='none';
 recalc();
 })();
+
+/* ---------- Мобильное меню (бургер) ----------
+   Общий для всех страниц: кнопка добавляется в шапку скриптом,
+   раскрывает .header-nav выпадающим списком на узких экранах. */
+(function(){
+  function initBurger(){
+    var header=document.querySelector('.header');
+    var container=document.querySelector('.header .container');
+    var nav=document.querySelector('.header-nav');
+    if(!header||!container||!nav) return;
+    if(container.querySelector('.burger')) return; // уже добавлен
+    var b=document.createElement('button');
+    b.type='button';
+    b.className='burger';
+    b.setAttribute('aria-label','Меню');
+    b.setAttribute('aria-expanded','false');
+    b.innerHTML='☰';
+    container.appendChild(b);
+
+    // Панель приклеена к шапке (position:absolute) и следует за ней сама.
+    // Ограничиваем высоту экраном, чтобы длинное меню не уходило за край —
+    // внутри включается прокрутка.
+    function place(){
+      var top=Math.max(0, Math.round(nav.getBoundingClientRect().top));
+      nav.style.maxHeight=(window.innerHeight-top-8)+'px';
+    }
+    function open(){
+      nav.classList.add('is-open');
+      b.setAttribute('aria-expanded','true');
+      b.innerHTML='✕';
+      place();
+    }
+    function close(){
+      nav.classList.remove('is-open');
+      b.setAttribute('aria-expanded','false');
+      b.innerHTML='☰';
+    }
+    function isOpen(){return nav.classList.contains('is-open');}
+
+    b.addEventListener('click',function(e){
+      e.stopPropagation();
+      isOpen()?close():open();
+    });
+    nav.querySelectorAll('a').forEach(function(a){a.addEventListener('click',close);});
+    document.addEventListener('click',function(ev){
+      if(isOpen()&&!nav.contains(ev.target)&&ev.target!==b) close();
+    });
+    window.addEventListener('keydown',function(ev){if(ev.key==='Escape'&&isOpen()) close();});
+    // Перепозиционируем при повороте/ресайзе; на десктопе просто закрываем.
+    window.addEventListener('resize',function(){
+      if(!isOpen()) return;
+      if(window.innerWidth>1080) close(); else place();
+    });
+  }
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',initBurger);
+  else initBurger();
+})();

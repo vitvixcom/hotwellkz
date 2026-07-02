@@ -1,6 +1,7 @@
 
 # OpenAI ключ скилла (не коммитить)
 .claude/skills/generate-article/.openai_key
+.openai_key
 
 # Локальное состояние Netlify CLI
 .netlify/
