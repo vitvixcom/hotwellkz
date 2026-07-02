@@ -57,6 +57,8 @@
       ".hw-geo.is-open{opacity:1}" +
       ".hw-geo__box{position:relative;width:100%;max-width:460px;background:#fff;border-radius:18px 18px 0 0;box-shadow:0 -8px 40px rgba(20,22,16,.28);padding:22px 20px 20px;transform:translateY(18px);transition:transform .24s cubic-bezier(.2,.8,.2,1);display:flex;gap:14px}" +
       ".hw-geo.is-open .hw-geo__box{transform:none}" +
+      ".hw-geo__box--pick{flex-direction:column;gap:0;align-items:stretch}" +
+      ".hw-geo__box--pick .hw-geo__list{max-height:min(50vh,440px)}" +
       "@media(min-width:560px){.hw-geo{align-items:center}.hw-geo__box{border-radius:18px}}" +
       ".hw-geo__x{position:absolute;top:10px;right:12px;background:none;border:0;font-size:1.7rem;line-height:1;color:#9a9a90;cursor:pointer;padding:2px 8px;border-radius:8px}" +
       ".hw-geo__x:hover{background:#f0efe9;color:#333}" +
@@ -113,6 +115,7 @@
 
   function picker(wrap) {
     var box = wrap.querySelector('.hw-geo__box');
+    box.classList.add('hw-geo__box--pick');
     var list = IDX.cities.slice().sort(function (a, b) { return a.name.localeCompare(b.name, 'ru'); });
     box.innerHTML =
       '<button class="hw-geo__x" aria-label="Закрыть">&times;</button>' +
