@@ -18,7 +18,7 @@
 <meta property="og:url" content="https://hotwellkz.kz/proekty.html">
 <meta property="og:image" content="https://hotwellkz.kz/assets/og-cover.png">
 <meta name="twitter:card" content="summary_large_image">
-<link rel="stylesheet" href="css/style.css?v=20260701m">
+<link rel="stylesheet" href="css/style.css?v=20260701hist">
 <script type="application/ld+json">{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Главная","item":"https://hotwellkz.kz/"},{"@type":"ListItem","position":2,"name":"Каталог проектов","item":"https://hotwellkz.kz/proekty.html"}]}</script>
 <script type="application/ld+json">{"@context":"https://schema.org","@type":"CollectionPage","name":"Каталог проектов домов из СИП-панелей","description":"Готовые проекты домов из СИП-панелей с ценами и планировками.","url":"https://hotwellkz.kz/proekty.html","isPartOf":{"@type":"WebSite","name":"HotWell.kz","url":"https://hotwellkz.kz/"}}</script>
   <script src="/assets/gtag.js" defer></script>
@@ -51,6 +51,7 @@
         <svg class="cat-search__ic" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.5" y2="16.5"/></svg>
         <input type="search" id="catSearch" placeholder="Поиск по названию — например, С-12, А-49" autocomplete="off" aria-label="Поиск проекта по названию">
         <button type="button" class="cat-search__clear" id="catSearchClear" aria-label="Очистить" hidden>&times;</button>
+        <div class="cat-search__hist" id="catHist" role="listbox" aria-label="История поиска" hidden></div>
       </div>
       <div class="catalog-toolbar">
         <button id="filtersToggle" class="btn btn--primary filters-toggle"><svg width="18"><use href="#i-filter"/></svg> Фильтры и сортировка<span id="fCountBadge" class="fbadge" hidden></span><span class="ftgl-chev" aria-hidden="true">▾</span></button>
@@ -190,13 +191,42 @@ function areaActive(){ return (+$('fAreaMin').value>0) || (+$('fAreaMax').value 
 function activeCount(){ var c=0; FIELDS.forEach(function(id){ if(($(id).value||'').trim()) c++; }); if(priceActive()) c++; if(areaActive()) c++; return c; }
 FIELDS.concat(['fSort']).forEach(function(id){ $(id).addEventListener('input', apply); });
 // Видимый поиск по названию вверху каталога — ведёт скрытый #fSearch в панели.
+// + локальная история поисков (выпадашка при фокусе).
 (function(){
-  var top=$('catSearch'), inner=$('fSearch'), clr=$('catSearchClear');
+  var top=$('catSearch'), inner=$('fSearch'), clr=$('catSearchClear'), hist=$('catHist');
   if(!top) return;
+  var HKEY='hw_search_hist', MAX=8;
+  function hget(){ try{ return JSON.parse(localStorage.getItem(HKEY)||'[]'); }catch(e){ return []; } }
+  function hset(a){ try{ localStorage.setItem(HKEY, JSON.stringify(a.slice(0,MAX))); }catch(e){} }
+  function hsave(q){ q=(q||'').trim(); if(q.length<2) return;
+    var a=hget().filter(function(x){ return x.toLowerCase()!==q.toLowerCase(); }); a.unshift(q); hset(a); }
+  function hdel(q){ hset(hget().filter(function(x){ return x!==q; })); }
   function syncClear(){ if(clr) clr.hidden = !top.value; }
-  top.addEventListener('input', function(){ inner.value=top.value; syncClear(); apply(); });
+  function esc(s){ return s.replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];}); }
+  var ICON='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>';
+  function renderHist(){
+    if(!hist) return;
+    var a=hget();
+    if(!a.length || top.value){ hist.hidden=true; hist.innerHTML=''; return; }
+    var rows='<div class="cat-search__hist-h"><span>Недавние поиски</span><button type="button" class="cat-search__hist-clr" id="histClr">Очистить</button></div>';
+    rows+=a.map(function(q){ return '<div class="cat-hist-item" role="option" data-q="'+esc(q)+'">'+ICON+'<span>'+esc(q)+'</span><b class="cat-hist-del" aria-label="Удалить">&times;</b></div>'; }).join('');
+    hist.innerHTML=rows; hist.hidden=false;
+  }
+  function pick(q){ top.value=q; inner.value=q; syncClear(); hsave(q); if(hist) hist.hidden=true; apply(); }
+  top.addEventListener('input', function(){ inner.value=top.value; syncClear(); if(hist) hist.hidden=true; apply(); });
   inner.addEventListener('input', function(){ top.value=inner.value; syncClear(); });
-  if(clr) clr.addEventListener('click', function(){ top.value=''; inner.value=''; syncClear(); apply(); top.focus(); });
+  if(clr) clr.addEventListener('click', function(){ top.value=''; inner.value=''; syncClear(); apply(); top.focus(); renderHist(); });
+  top.addEventListener('focus', renderHist);
+  top.addEventListener('keydown', function(e){ if(e.key==='Enter'){ hsave(top.value); if(hist) hist.hidden=true; } else if(e.key==='Escape'){ if(hist) hist.hidden=true; } });
+  top.addEventListener('blur', function(){ hsave(top.value); });
+  if(hist) hist.addEventListener('mousedown', function(e){
+    var del=e.target.closest('.cat-hist-del');
+    if(del){ e.preventDefault(); hdel(del.closest('.cat-hist-item').getAttribute('data-q')); renderHist(); top.focus(); return; }
+    if(e.target.closest('#histClr')){ e.preventDefault(); hset([]); renderHist(); top.focus(); return; }
+    var item=e.target.closest('.cat-hist-item');
+    if(item){ e.preventDefault(); pick(item.getAttribute('data-q')); }
+  });
+  document.addEventListener('click', function(e){ if(hist && !e.target.closest('.cat-search')) hist.hidden=true; });
 })();
 // Выбор сортировки запоминаем на устройстве — на следующий визит восстановится.
 $('fSort').addEventListener('change', function(){ try{ localStorage.setItem('projSort', $('fSort').value); }catch(e){} });

@@ -453,6 +453,18 @@ html,body{max-width:100%;overflow-x:clip}
 .cat-search input::-webkit-search-cancel-button{display:none}
 .cat-search__clear{position:absolute;right:8px;width:30px;height:30px;border:0;background:none;color:var(--c-muted,#888);font-size:1.5rem;line-height:1;cursor:pointer;border-radius:50%}
 .cat-search__clear:hover{background:var(--c-bg-2,#eef1ec);color:var(--c-ink,#222)}
+/* История поиска (выпадашка при фокусе) */
+.cat-search__hist{position:absolute;top:calc(100% + 6px);left:0;right:0;z-index:45;background:#fff;border:1px solid var(--c-line);border-radius:var(--r-md);box-shadow:var(--sh-md);padding:6px;max-height:340px;overflow-y:auto}
+.cat-search__hist[hidden]{display:none}
+.cat-search__hist-h{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:5px 10px 7px;font-size:.8rem;color:var(--c-muted);font-weight:700;text-transform:uppercase;letter-spacing:.03em}
+.cat-search__hist-clr{background:none;border:0;color:var(--c-green);font:inherit;font-weight:700;font-size:.78rem;text-transform:none;letter-spacing:0;cursor:pointer;padding:0}
+.cat-search__hist-clr:hover{color:var(--c-green-700)}
+.cat-hist-item{display:flex;align-items:center;gap:10px;padding:10px;border-radius:var(--r-sm);cursor:pointer}
+.cat-hist-item:hover{background:var(--c-badge)}
+.cat-hist-item svg{width:16px;height:16px;color:var(--c-muted);flex:none}
+.cat-hist-item span{flex:1;color:var(--c-ink);font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cat-hist-del{flex:none;color:var(--c-muted);font-weight:700;font-size:1.25rem;line-height:1;padding:2px 8px;border-radius:8px}
+.cat-hist-del:hover{background:#e6ddcd;color:var(--c-ink)}
 @media(max-width:560px){.catmode{display:flex;width:100%}.catmode__btn{flex:1;padding:10px 8px;font-size:.9rem}}
 @media(max-width:860px){.pg{grid-template-columns:1fr;gap:22px}
 }
